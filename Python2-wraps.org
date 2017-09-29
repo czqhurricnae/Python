@@ -1,0 +1,489 @@
+* 什么是装饰器
+装饰器是一个函数，其主要用途是包装另一个函数或类。这种包装的首要目的是透明地修改或增强被包装对象的行为.
+
+使用装饰器语法
+#+BEGIN_SRC python :results  output :exports both
+  import sys
+
+  debug_log = sys.stdout
+
+
+  def trace(func):
+      if debug_log:
+          def callf(*args, **kwargs):
+              """A wrapper function."""
+              debug_log.write("Calling function: {}\n".format(func.__name__))
+              res = func(*args, **kwargs)
+              debug_log.write("Return value: {}\n".format(res))
+              return res
+          return callf
+      else:
+          return func
+
+
+  @trace
+  def square(x):
+      """Calculate the square of the given number."""
+      return x * x
+
+
+  if __name__ == "__main__":
+      print square(3)
+
+#+END_SRC
+
+#+RESULTS:
+: Calling function: square
+: Return value: 9
+: 9
+不使用装饰器语法,手动调用装饰器函数
+
+#+BEGIN_SRC python :results  output :exports both
+  import sys
+
+  debug_log = sys.stdout
+
+
+  def trace(func):
+      if debug_log:
+          def callf(*args, **kwargs):
+              """A wrapper function."""
+              debug_log.write("Calling function: {}\n".format(func.__name__))
+              res = func(*args, **kwargs)
+              debug_log.write("Return value: {}\n".format(res))
+              return res
+          return callf
+      else:
+          return func
+
+
+  def _square(x):
+      return x * x
+
+
+  square = trace(_square)
+  print square(4)
+#+END_SRC
+
+#+RESULTS:
+: Calling function: _square
+: Return value: 16
+: 16
+
+* 为装饰器获取函数属性
+** 函数装饰器存在着一定的弊端, 就是无法获取原函数的一些属性, 如下例子所示.
+   #+BEGIN_SRC python :results  output :exports both
+     import sys
+
+     debug_log = sys.stdout
+
+
+     def trace(func):
+         if debug_log:
+             def callf(*args, **kwargs):
+                 """A wrapper function."""
+                 debug_log.write("Calling function: {}\n".format(func.__name__))
+                 res = func(*args, **kwargs)
+                 debug_log.write("Return value: {}\n".format(res))
+                 return res
+             return callf
+         else:
+             return func
+
+
+     def _square(x):
+         return x * x
+
+
+     square = trace(_square)
+     help(square)
+     print square.__name__
+   #+END_SRC
+
+   #+RESULTS:
+   : Help on function callf in module __main__:
+   : 
+   : callf(*args, **kwargs)
+   :     A wrapper function.
+   : 
+   : callf
+为什么会如此呢?在Python中所有对象都是"第一类"的, 比如函数对象, 我们可以把它当做普通的数据对待,
+既可以存储到容器中, 又可以作为另一个函数的返回值.
+在"debug_log"为真的情况下, "trace"返回一个函数对象"callf", 这个函数对象就是一个闭包, 因为当我们
+通过:
+
+#+BEGIN_SRC python :results  output :exports both
+  def _square(x):
+      return x * x
+
+
+  square = trace(_square)
+#+END_SRC
+把"trace"返回的"callf"存储到"square"时, 我们得到的不仅仅是"callf"函数执行语句,
+还有其上下文环境:
+
+#+BEGIN_SRC python :results  output :exports both
+  import sys
+
+  debug_log = sys.stdout
+
+
+  def trace(func):
+      if debug_log:
+          def callf(*args, **kwargs):
+              """A wrapper function."""
+              debug_log.write("Calling function: {}\n".format(func.__name__))
+              res = func(*args, **kwargs)
+              debug_log.write("Return value: {}\n".format(res))
+              return res
+          return callf
+      else:
+          return func
+
+
+  def _square(x):
+      return x * x
+
+
+  square = trace(_square)
+  help(square)
+  print square.__name__
+
+  print "debug_log" in square.__globals__
+  print "sys" in square.__globals__
+#+END_SRC
+
+#+RESULTS:
+: Help on function callf in module __main__:
+: 
+: callf(*args, **kwargs)
+:     A wrapper function.
+: 
+: callf
+: True
+: True
+因此, 使用装饰器修饰过的函数"square", 实际上是一个"trace"函数返回的闭包对象"callf",这就说明了
+上面演示的输出结果了.
+
+** 为装饰器获取函数属性
+*** 可以使用functool模块提供的wraps装饰器来达到所需的效果.
+#+BEGIN_SRC python :results  output :exports both
+  from functools import wraps
+
+
+  def my_decorator(f):
+      print "Implementing function: '{}'".format(f.__name__)
+      @wraps(f)
+      def wrapper(*args, **kwargs):
+          print "Calling decorated function"
+          return f(*args, **kwargs)
+      return wrapper
+
+
+  @my_decorator
+  def example():
+      """Docstring"""
+      print "Called example function"
+  print "Begin calling"
+  example()
+  print example.__name__
+  print example.__doc__
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+Implementing function: 'example'
+Begin calling
+Calling decorated function
+Called example function
+example
+Docstring
+:END:
+*** 带参数的装饰器
+#+BEGIN_SRC python :results  output :exports both
+  from functools import wraps
+
+
+  def trace(log_level):
+      def impl_f(func):
+          print log_level, 'Implementing function: "{}"'.format(func.__name__)
+          @wraps(func)
+          def wrapper(*args, **kwargs):
+              print "Called decorated function"
+              return func(*args, **kwargs)
+          return wrapper
+      return impl_f
+
+
+  @trace("[INFO]")
+  def print_msg(msg):
+      """Docstring"""
+      print msg
+
+
+  @trace("[DEBUG]")
+  def assert_(expr):
+      assert expr
+
+
+  print_msg("Hello, world!")
+
+  print print_msg.__name__
+  print print_msg.__doc__
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+[INFO] Implementing function: "print_msg"
+[DEBUG] Implementing function: "assert_"
+Called decorated function
+Hello, world!
+print_msg
+Docstring
+:END:
+这里可以看出`@wraps`装饰器之前的语句是会在自定义的函数装饰器使用时立即执行的.
+而之后的语句是在被装饰后的函数执行时才执行的.
+在上面的示例中:
+
+#+BEGIN_SRC python :results  output :exports both
+  @trace("[INFO]")
+  def print_msg(msg):
+      print msg
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+[INFO] Implementing function: "print_msg"
+:END:
+等价于:
+
+#+BEGIN_SRC python :results  output :exports both
+  temp = trace("[INFO]")
+  def _print_msg(msg):
+      print msg
+
+
+  print_msg = temp(_print_msg)
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+[INFO] Implementing function: "_print_msg"
+:END:
+
+* wraps装饰器的原理
+** 如何找到"funtools"模块文件的路径:
+#+BEGIN_SRC python :results  output :exports both
+  import functools
+  print functools.__file__
+#+END_SRC
+
+#+RESULTS:
+: /System/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/functools.pyc
+wraps装饰器的源代码:
+#+BEGIN_SRC python :results  output :exports both
+  WRAPPER_ASSIGNMENTS = ('__module__', '__name__', '__qualname__', '__doc__',
+                         '__annotations__')
+  WRAPPER_UPDATES = ('__dict__',)
+
+
+  def update_wrapper(wrapper,
+                     wrapped,
+                     assigned=WRAPPER_ASSIGNMENTS,
+                     updated=WRAPPER_UPDATES):
+      """Update a wrapper function to look like the wrapped function
+      wrapper is the function to be updated
+      wrapped is the original function
+      assigned is a tuple naming the attributes assigned directly
+      from the wrapped function to the wrapper function (defaults to
+      functools.WRAPPER_ASSIGNMENTS)
+      updated is a tuple naming the attributes of the wrapper that
+      are updated with the corresponding attribute from the wrapped
+      function (defaults to functools.WRAPPER_UPDATES)
+      """
+      for attr in assigned:
+          try:
+              value = getattr(wrapped, attr)
+          except AttributeError:
+              pass
+          else:
+              setattr(wrapper, attr, value)
+      for attr in updated:
+          getattr(wrapper, attr).update(getattr(wrapped, attr, {}))
+          # Issue #17482: set __wrapped__ last so we don't inadvertently copy it
+          # from the wrapped function when updating __dict__
+          wrapper.__wrapped__ = wrapped
+          # Return the wrapper so this can be used as a decorator via partial()
+      return wrapper
+
+
+  def wraps(wrapped,
+            assigned=WRAPPER_ASSIGNMENTS,
+            updated=WRAPPER_UPDATES):
+      """Decorator factory to apply update_wrapper() to a wrapper function
+      Returns a decorator that invokes update_wrapper() with the decorated
+      function as the wrapper argument and the arguments to wraps() as the
+      remaining arguments. Default arguments are as for update_wrapper().
+      This is a convenience function to simplify applying partial() to
+      update_wrapper().
+      """
+      return partial(update_wrapper, wrapped=wrapped,
+                     assigned=assigned, updated=updated)
+#+END_SRC
+
+#+RESULTS:
+
+** partial函数
+partial函数对函数参数进行部分求值.
+得到的新对象与一般的函数对象有些差别, 比如foo_without_z是没有__name__属性的.
+#+BEGIN_SRC python :results  output :exports both
+  from functools import partial
+  def foo(x, y, z):
+      print locals()
+
+  foo(1, 2, 3)
+
+  foo_without_z = partial(foo, 10, 20)
+  print foo_without_z
+  try:
+      print foo_without_z.__name__
+  except AttributeError:
+      print "Has no attribute '__name__'"
+  print foo_without_z.__doc__
+  foo_without_z(30)
+#+END_SRC
+
+#+RESULTS:
+: {'y': 2, 'x': 1, 'z': 3}
+: <functools.partial object at 0x10fbab9f0>
+: Has no attribute '__name__'
+: partial(func, *args, **keywords) - new function with partial application
+:     of the given arguments and keywords.
+: 
+: {'y': 20, 'x': 10, 'z': 30}
+因此,在wraps函数中
+
+#+BEGIN_SRC python :results  output :exports both
+  return partial(update_wrapper, wrapped=wrapped,
+                 assigned=assigned, updated=updated)
+#+END_SRC
+实际上是返回一个对update_wrapper进行部分求值的对象.
+
+#+BEGIN_SRC python :results  output :exports both
+  import functools
+  import sys
+
+  debug_log = sys.stderr
+
+
+  def trace(func):
+      if debug_log:
+          @functools.wraps(func)
+          def callf(*args, **kwargs):
+              """A wrapper function."""
+              debug_log.write('Calling function: {}\n'.format(func.__name__))
+              res = func(*args, **kwargs)
+              debug_log.write('Return value: {}\n'.format(res))
+              return res
+          return callf
+      else:
+          return func
+
+
+  @trace
+  def square(x):
+      """Calculate the square of the given number."""
+      return x * x
+
+
+  if __name__ == '__main__':
+      print(square(3))
+      print(square.__doc__)
+      print(square.__name__)
+#+END_SRC
+
+#+RESULTS:
+: 9
+: Calculate the square of the given number.
+: square
+
+等价于:
+
+#+BEGIN_SRC python 
+  def trace(func):
+      if debug_log:
+          def _callf(*args, **kwargs):
+              """A wrapper function."""
+              debug_log.write('Calling function: {}\n'.format(func.__name__))
+              res = func(*args, **kwargs)
+              debug_log.write('Return value: {}\n'.format(res))
+              return res
+
+          _temp = functools.wraps(func)
+          callf = _temp(_callf)
+          return callf
+      else:
+          return func
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+:END:
+
+对"functools.wraps"进行展开:
+
+#+BEGIN_SRC python 
+  def trace(func):
+      if debug_log:
+          def _callf(*args, **kwargs):
+              """A wrapper function."""
+              debug_log.write('Calling function: {}\n'.format(func.__name__))
+              res = func(*args, **kwargs)
+              debug_log.write('Return value: {}\n'.format(res))
+              return res
+
+          _temp = functools.partial(functools.update_wrapper,
+                          wrapped = func,
+                          assigned = functools.WRAPPER_ASSIGNMENTS,
+                          updated = functools.WRAPPER_UPDATES)
+          callf = _temp(_callf)
+          return callf
+      else:
+          return func
+
+#+END_SRC
+
+#+RESULTS:
+: None
+
+对"partial"调用进行展开:
+
+#+BEGIN_SRC python
+  def trace(func):
+      if debug_log:
+          def _callf(*args, **kwargs):
+              """A wrapper function."""
+              debug_log.write('Calling function: {}\n'.format(func.__name__))
+              res = func(*args, **kwargs)
+              debug_log.write('Return value: {}\n'.format(res))
+              return res
+
+          callf = functools.update_wrapper(_callf,
+                       wrapped = func,
+                       assigned = functools.WRAPPER_ASSIGNMENTS,
+                       updated = functools.WRAPPER_UPDATES)
+          return callf
+      else:
+          return func
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+:END:
+
+** update_wrapper函数
+update_wrapper做的工作很简单，就是用参数wrapped表示的函数对象（例如：square）
+的一些属性（如：__name__、 __doc__）覆盖参数wrapper表示的函数对象
+（例如：callf，这里callf只是简单地调用square函数，
+因此可以说callf是 square的一个wrapper function）的这些相应属性.
+
