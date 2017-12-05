@@ -1,0 +1,174 @@
+* 格式化输出
+
+  #+BEGIN_SRC python :session :results raw drawer output :exports both
+    print(format(0.3456, "6.1%"))
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+   34.6%
+  :END:
+  
+* Python文件类型
+** 源代码
+   以"py"为扩展名, 由Python程序解释,不需要编译
+
+** 字节代码
+   Python源文件经编译后生成的扩展名为"pyc"的文件
+
+  #+BEGIN_SRC python :session :results raw drawer output :exports both
+    import py_compile
+    py_compile.compile("hello.py")
+  #+END_SRC
+
+** 优化代码
+   经过优化的源代码, 扩展名为"pyo"
+
+  #+BEGIN_SRC python :session :results raw drawer output :exports both
+    python -O -m py_compile hello.py
+  #+END_SRC
+
+* 运算符的优先级
+  运算符优先级由低到高, 级别高的先运算
+  | lambda     |                     |
+  | 赋值运算   | x=                  |
+  | 逻辑运算   | or                  |
+  | 逻辑运算   | and                 |
+  | 逻辑运算   | not                 |
+  | 成员测试   | in, not in          |
+  | 同一性测试 | is, is not          |
+  | 关系运算   | <, <=, >, >=,!=, == |
+  | 按位或     | \vert               |
+  | 按位异或   | ^                   |
+  | 按位与     | &                   |
+  | 移位       | <<, >>              |
+  | 算术运算   | +, -, *, /, %       |
+  | 正负号     | +x, -x              |
+  | 按位翻转   | ~x                  |
+  | 指数       | **                  |
+* 数据类型
+** 数字类型
+*** 整型
+    在Python2中整数int表示的范围由sys.maxint界定
+    而在python3中就不是如此了, 就算一个数字大于sys.maxsize, Python还是将其认定为int类型
+
+  #+BEGIN_SRC ipython :session :results raw drawer output :exports both
+    num1 = 123
+    print type(num1)
+    num2 = 123L
+    print type(num2)
+    import sys
+    print sys.maxint
+    print type(sys.maxint+1)
+    print sys.maxsize
+    print type(sys.maxsize+1)
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  <type 'int'>
+  <type 'long'>
+  9223372036854775807
+  <type 'long'>
+  9223372036854775807
+  <type 'long'>
+  :END:
+
+*** 浮点型, 复数型complex
+
+    #+BEGIN_SRC ipython :session :results raw drawer output :exports both
+      num = 3e+7
+      print type(num)
+      num = 8.32e-36j
+      print type(num)
+    #+END_SRC
+
+    #+RESULTS:
+    :RESULTS:
+    <type 'float'>
+    <type 'complex'>
+    :END:
+** 字符串类型
+
+   #+BEGIN_SRC ipython :session :results raw drawer output :exports both
+     mail = """
+     tom:
+         i am jack
+         goodbye
+     """
+     print mail
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+
+   tom:
+       i am jack
+       goodbye
+
+   :END:
+
+   注意步长取值正负时, 相关的前后取值对结果的影响
+   #+BEGIN_SRC ipython :session :results raw drawer output :exports both
+     a = "abcde"
+     print a[-2:-5]
+     print a[-5:-2]
+     print a[-2:-5:-1]
+     print a[-5:-2:-1]
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+
+   abc
+   dcb
+
+   :END:
+
+   字符串可以使用内置函数max, min, len, in, cmp
+   序列可以使用内置函数max, min, len, in, cmp
+   #+BEGIN_SRC ipython :session :results raw drawer output :exports both
+     str1 = "12345"
+     str2 = "abcde"
+     print max(str1)
+     print min(str2)
+     print cmp(str1, str2)
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   5
+   a
+   -1
+   :END:
+** 列表
+   删除列表中的元素也可以使用内置函数del
+   #+BEGIN_SRC ipython :session :results raw drawer output :exports both
+     l = [1, 2, 3, 4, 5]
+     del l[0]
+     print l
+     l.remove(2)
+     print l
+   #+END_SRC
+   
+   #+RESULTS:
+   :RESULTS:
+   [2, 3, 4, 5]
+   [3, 4, 5]
+   :END:
+
+** 字典
+   可以使用变量名来作为字典的键
+
+   #+BEGIN_SRC ipython :session :results raw drawer output :exports both
+     name = "a"
+     dic = {name: "Folrolo", "age": 14}
+     print name
+     print dic[name]
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   a
+   Folrolo
+   :END:
