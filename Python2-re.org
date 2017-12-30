@@ -1,0 +1,1434 @@
+* re模块
+** search()函数
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :session :results raw drawer output :exports both
+  import re
+
+  pattern = "this"
+  text = "Does this text match the pattern?"
+
+  match = re.search(pattern, text)
+  print match
+
+  s = match.start()
+  e = match.end()
+
+  print "Found '%s'\nin '%s'\nfrom %d to %d ('%s')" % \
+        (match.re.pattern, match.string, s, e, text[s: e])
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+<_sre.SRE_Match object at 0x10f92db28>
+Found 'this'
+in 'Does this text match the pattern?'
+from 5 to 9 ('this')
+:END:
+
+** 编译表达式
+模块级函数会维护已编译表达式的一个缓存, 不过, 这个缓存的大小是有限的, 直接使用已编译表达式可以避免查找开销, 使用已编译表达式的另一个好处是, 通过加载模块是预编译所有表达式, 可以把编译工作转到应用开始时, 而不是当程序响应一个用户动作是才进行.
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :session :results raw drawer output :exports both
+  import re
+
+  regexes = [re.compile(p) for p in ["this", "that"]]
+  text = "Dose this text match the pattern?"
+
+  print "Text: %r\n" % text
+
+  for regex in regexes:
+      print "Seeking '%s' ->" % regex.pattern
+
+      if regex.search(text):
+          print "Mathch!"
+      else:
+          print "No match!"
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+Text: 'Dose this text match the pattern?'
+
+Seeking 'this' ->
+Mathch!
+Seeking 'that' ->
+No match!
+:END:
+
+** 多重匹配
+findall()函数返回输入中与模式匹配而不重叠的所有子串, 为字符串格式.
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :session :results raw drawer output :exports both
+  import re
+
+  text = "abbaaabbbbaaaaa"
+
+  pattern = "ab"
+
+  for match in re.findall(pattern, text):
+      print "Found: %s" % match
+      print type(match)
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+Found: ab
+<type 'str'>
+Found: ab
+<type 'str'>
+:END:
+
+finditer()函数返回一个迭代器, 里面是Match实例, 而不是像findall()函数返回字符串.
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :session :results raw drawer output :exports both
+  import re
+
+  text = "abbaaabbbbaaaaa"
+
+  pattern = "ab"
+
+  for match in re.finditer(pattern, text):
+      s = match.start()
+      e = match.end()
+      print "Found: %s at %d: %d" % (text[s:e], s, e) 
+      print type(match)
+#+END_SRC
+
+#+RESULTS:
+: Found: ab at 0: 2
+: <type '_sre.SRE_Match'>
+: Found: ab at 5: 7
+: <type '_sre.SRE_Match'>
+
+** 模式语法
+
+   #+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :session :results raw drawer output :exports both
+     import re
+
+     def test_patterns(text, patterns = []):
+         """Given source text and a list of patterns, look for
+         matches for each pattern within the text and print
+         them to stdout.
+         """
+         # Look for each pattern in the text and print the results
+         for pattern, desc in patterns:
+             print "pattern %r (%s)\n" % (pattern, desc)
+             print "  %r" % text
+             for match in re.finditer(pattern, text):
+                 s = match.start()
+                 e = match.end()
+                 substr = text[s:e]
+                 n_backslashed = text[:s].count("\\")
+                 prefix = "." * (s + n_backslashed)
+                 print "  %s%r" % (prefix, substr)
+             print
+         return
+
+     if __name__ == "__main__":
+         test_patterns("abbaaabbbbaaaaa",
+                      [("ab", "'a' followed by 'b'"),
+                      ])
+   #+END_SRC
+
+   #+RESULTS:
+   :RESULTS:
+   pattern 'ab' ('a' followed by 'b')
+
+     'abbaaabbbbaaaaa'
+     'ab'
+     .....'ab'
+
+   :END:
+
+*: 0次或多次 +: 1次或多次 ?: 0次或多次 {m}: m次 {m,n}: 最少m次,最多n次, 注意m与n之间不能出现空格, 否则会导致结果不正确.
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :session :results raw drawer output :exports both
+  import re
+
+  def test_patterns(text, patterns = []):
+      """Given source text and a list of patterns, look for
+      matches for each pattern within the text and print
+      them to stdout.
+      """
+      # Look for each pattern in the text and print the results
+      for pattern, desc in patterns:
+          print "pattern %r (%s)\n" % (pattern, desc)
+          print "  %r" % text
+          for match in re.finditer(pattern, text):
+              s = match.start()
+              e = match.end()
+              substr = text[s:e]
+              n_backslashed = text[:s].count("\\")
+              prefix = "." * (s + n_backslashed)
+              print "  %s%r" % (prefix, substr)
+          print
+      return
+
+  if __name__ == "__main__":
+      test_patterns("abbaabbba",
+                   [("ab*", "'a' followed by zero or more 'b'"),
+                    ("ab+", "'a' followed by one or more 'b'"),
+                    ("ab?", "'a' followed by zero or one 'b'"),
+                    ("ab{3}", "'a' followed by three 'b'"),
+                    ("ab{2,3}", "'a' followed by two to three 'b'"),
+                   ])
+
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+pattern 'ab*' ('a' followed by zero or more 'b')
+
+  'abbaabbba'
+  'abb'
+  ...'a'
+  ....'abbb'
+  ........'a'
+
+pattern 'ab+' ('a' followed by one or more 'b')
+
+  'abbaabbba'
+  'abb'
+  ....'abbb'
+
+pattern 'ab?' ('a' followed by zero or one 'b')
+
+  'abbaabbba'
+  'ab'
+  ...'a'
+  ....'ab'
+  ........'a'
+
+pattern 'ab{3}' ('a' followed by three 'b')
+
+  'abbaabbba'
+  ....'abbb'
+
+pattern 'ab{2,3}' ('a' followed by two to three 'b')
+
+  'abbaabbba'
+  'abb'
+  ....'abbb'
+
+:END:
+
+** 关闭贪婪模式, 在重复指令后面加上?可以关闭贪婪模式
+对于允许b出现0次的模式, 如果关闭贪婪模式, 意味着匹配的子串不包含任何b字符.
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :session :results raw drawer output :exports both
+  import re
+
+  def test_patterns(text, patterns = []):
+      """Given source text and a list of patterns, look for
+      matches for each pattern within the text and print
+      them to stdout.
+      """
+      # Look for each pattern in the text and print the results
+      for pattern, desc in patterns:
+          print "pattern %r (%s)\n" % (pattern, desc)
+          print "  %r" % text
+          for match in re.finditer(pattern, text):
+              s = match.start()
+              e = match.end()
+              substr = text[s:e]
+              n_backslashed = text[:s].count("\\")
+              prefix = "." * (s + n_backslashed)
+              print "  %s%r" % (prefix, substr)
+          print
+      return
+
+  if __name__ == "__main__":
+      test_patterns("abbaabbba",
+                   [("ab*?", "'a' followed by zero or more 'b'"),
+                    ("ab+?", "'a' followed by one or more 'b'"),
+                    ("ab??", "'a' followed by zero or one 'b'"),
+                    ("ab{3}?", "'a' followed by three 'b'"),
+                    ("ab{2,3}?", "'a' followed by two to three 'b'"),
+                   ])
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+pattern 'ab*?' ('a' followed by zero or more 'b')
+
+  'abbaabbba'
+  'a'
+  ...'a'
+  ....'a'
+  ........'a'
+
+pattern 'ab+?' ('a' followed by one or more 'b')
+
+  'abbaabbba'
+  'ab'
+  ....'ab'
+
+pattern 'ab??' ('a' followed by zero or one 'b')
+
+  'abbaabbba'
+  'a'
+  ...'a'
+  ....'a'
+  ........'a'
+
+pattern 'ab{3}?' ('a' followed by three 'b')
+
+  'abbaabbba'
+  ....'abbb'
+
+pattern 'ab{2,3}?' ('a' followed by two to three 'b')
+
+  'abbaabbba'
+  'abb'
+  ....'abb'
+
+:END:
+
+** 字符集
+字符集character set是一组字符, 包含可以与模式中相应位置匹配的所有字符.
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :session :results raw drawer output :exports both
+  import re
+
+  def test_patterns(text, patterns = []):
+      """Given source text and a list of patterns, look for
+      matches for each pattern within the text and print
+      them to stdout.
+      """
+      # Look for each pattern in the text and print the results
+      for pattern, desc in patterns:
+          print "pattern %r (%s)\n" % (pattern, desc)
+          print "  %r" % text
+          for match in re.finditer(pattern, text):
+              s = match.start()
+              e = match.end()
+              substr = text[s:e]
+              n_backslashed = text[:s].count("\\")
+              prefix = "." * (s + n_backslashed)
+              print "  %s%r" % (prefix, substr)
+          print
+      return
+
+  if __name__ == "__main__":
+      test_patterns("abbaabbba",
+                   [("[ab]", "either a or b"),
+                    ("a[ab]+", "a followed by 1 or more a or b"),
+                    ("a[ab]+?", "a followed by 1 or more a or b, not greedy"),
+                   ])
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+pattern '[ab]' (either a or b)
+
+  'abbaabbba'
+  'a'
+  .'b'
+  ..'b'
+  ...'a'
+  ....'a'
+  .....'b'
+  ......'b'
+  .......'b'
+  ........'a'
+
+pattern 'a[ab]+' (a followed by 1 or more a or b)
+
+  'abbaabbba'
+  'abbaabbba'
+
+pattern 'a[ab]+?' (a followed by 1 or more a or b, not greedy)
+
+  'abbaabbba'
+  'ab'
+  ...'aa'
+
+:END:
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :session :results raw drawer output :exports both
+  import re
+
+  def test_patterns(text, patterns=[]):
+      for pattern, desc in patterns:
+          print "pattern %r (%s)\n" % (pattern, desc)
+          print "  %r" % text
+          for match in re.finditer(pattern, text):
+              s = match.start()
+              e = match.end()
+              substr = text[s:e]
+              n_backslashed = text[:s].count("\\")
+              prefix = "." * (s + n_backslashed)
+              print "  %s%r" % (prefix, substr)
+          print
+      return
+
+  if __name__ == "__main__":
+      test_patterns("This is some text -- with punctuation.",
+                   [("[^-. ]+", "sequences without -, ., or space"),])
+
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+pattern '[^-. ]+' (sequences without -, ., or space)
+
+  'This is some text -- with punctuation.'
+  'This'
+  .....'is'
+  ........'some'
+  .............'text'
+  .....................'with'
+  ..........................'punctuation'
+
+:END:
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :session :results raw drawer output :exports both
+  import re
+
+  def test_patterns(text, patterns=[]):
+      for pattern, desc in patterns:
+          print "pattern %r (%s)\n" % (pattern, desc)
+          print "  %r" % text
+          for match in re.finditer(pattern, text):
+              s = match.start()
+              e = match.end()
+              substr = text[s:e]
+              n_backslashed = text[:s].count("\\")
+              prefix = "." * (s + n_backslashed)
+              print "  %s%r" % (prefix, substr)
+          print
+      return
+
+  if __name__ == "__main__":
+      test_patterns("This is some text -- with punctuation.",
+                   [("[a-z]+", "sequences of lowercae letters."),
+                    ("[A-Z]+", "sequences of uppercase letters."),
+                    ("[a-zA-Z]+", "sequences of lowercase or uppercase letters."),
+                    ("[A-Z][a-z]+", "one uppercase followed by lowercase.")])
+
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+pattern '[a-z]+' (sequences of lowercae letters.)
+
+  'This is some text -- with punctuation.'
+  .'his'
+  .....'is'
+  ........'some'
+  .............'text'
+  .....................'with'
+  ..........................'punctuation'
+
+pattern '[A-Z]+' (sequences of uppercase letters.)
+
+  'This is some text -- with punctuation.'
+  'T'
+
+pattern '[a-zA-Z]+' (sequences of lowercase or uppercase letters.)
+
+  'This is some text -- with punctuation.'
+  'This'
+  .....'is'
+  ........'some'
+  .............'text'
+  .....................'with'
+  ..........................'punctuation'
+
+pattern '[A-Z][a-z]+' (one uppercase followed by lowercase.)
+
+  'This is some text -- with punctuation.'
+  'This'
+
+:END:
+
+** 转义符号-反斜线\
+在下面的例子中"\\.\+"等价于r"\.+", r"\"匹配字符"\", r"+"匹配字符"+".
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :session :results raw drawer output :exports both
+  import re
+
+  def test_patterns(text, patterns=[]):
+      for pattern, desc in patterns:
+          print "pattern %r (%s)\n" % (pattern, desc)
+          print "  %r" % text
+          for match in re.finditer(pattern, text):
+              s = match.start()
+              e = match.end()
+              substr = text[s:e]
+              n_backslashed = text[:s].count("\\")
+              prefix = "." * (s + n_backslashed)
+              print "  %s%r" % (prefix, substr)
+          print
+      return
+
+  if __name__ == "__main__":
+      test_patterns("\d+ \D+ \s+",
+                   [("\\\\.\\+", "sequences of lowercae letters."),
+                    (r"\\.\+", "sequences of lowercae letters."),])
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+pattern '\\\\.\\+' (sequences of lowercae letters.)
+
+  '\\d+ \\D+ \\s+'
+  '\\d+'
+  .....'\\D+'
+  ..........'\\s+'
+
+pattern '\\\\.\\+' (sequences of lowercae letters.)
+
+  '\\d+ \\D+ \\s+'
+  '\\d+'
+  .....'\\D+'
+  ..........'\\s+'
+
+:END:
+
+** 锚定
+| 锚定码 | 含义                     |
+|--------+--------------------------|
+| /^     | 字符串或行的开始         |
+| /$     | 字符串或行的结束         |
+| \A     | 字符串开始               |
+| \Z     | 字符串结束               |
+| \b     | 一个单词开头或结尾的空串 |
+| \B     | 不在一个单词开头或结尾的空串           |
+
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :session :results raw drawer output :exports both
+  import re
+
+  def test_patterns(text, patterns=[]):
+      for pattern, desc in patterns:
+          print "pattern %r (%s)\n" % (pattern, desc)
+          print "  %r" % text
+          for match in re.finditer(pattern, text):
+              s = match.start()
+              e = match.end()
+              substr = text[s:e]
+              n_backslashed = text[:s].count("\\")
+              prefix = "." * (s + n_backslashed)
+              print "  %s%r" % (prefix, substr)
+          print
+      return
+
+  if __name__ == "__main__":
+      test_patterns("This is some text -- with punctuation.",
+                   [(r"^\w+", "word at start of string"),
+                    (r"\A\w+", "word at start of string"),
+                    (r"\w+\S*$", "word near end of string, skip punctuation"),
+                    (r"\w+\S*\Z", "word near end of string, skip punctuation"),
+                    (r"\w*t\w*", "word containing t"),
+                    (r"\bt\w+", "t at start of word"),
+                    (r"\w+t\b", "t at end of word"),
+                    (r"\Bt\B", "t not at start or end of word")])
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+pattern '^\\w+' (word at start of string)
+
+  'This is some text -- with punctuation.'
+  'This'
+
+pattern '\\A\\w+' (word at start of string)
+
+  'This is some text -- with punctuation.'
+  'This'
+
+pattern '\\w+\\S*$' (word near end of string, skip punctuation)
+
+  'This is some text -- with punctuation.'
+  ..........................'punctuation.'
+
+pattern '\\w+\\S*\\Z' (word near end of string, skip punctuation)
+
+  'This is some text -- with punctuation.'
+  ..........................'punctuation.'
+
+pattern '\\w*t\\w*' (word containing t)
+
+  'This is some text -- with punctuation.'
+  .............'text'
+  .....................'with'
+  ..........................'punctuation'
+
+pattern '\\bt\\w+' (t at start of word)
+
+  'This is some text -- with punctuation.'
+  .............'text'
+
+pattern '\\w+t\\b' (t at end of word)
+
+  'This is some text -- with punctuation.'
+  .............'text'
+
+pattern '\\Bt\\B' (t not at start or end of word)
+
+  'This is some text -- with punctuation.'
+  .......................'t'
+  ..............................'t'
+  .................................'t'
+
+:END:
+
+这个例子中有个小细节, 就是在匹配一个字符串的最后一个单词时使用r"\w+\S*\Z", 而不是r"\w+\Z", 后者会把整个字符串匹配, 
+若是r"\W+\Z", 则匹配了最后一个标点符号".".
+
+** ^与\A, $与\Z的区别
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :session :results raw drawer output :exports both
+  import re
+
+
+  def test_patterns(text, patterns=[]):
+      for pattern, desc in patterns:
+          print "pattern %r (%s)\n" % (pattern, desc)
+          print "  %r" % text
+          # 注意这里引入了多一个参数, 多行参数设置, re.MULTILINE
+          regex = re.compile(pattern, re.MULTILINE)
+          print regex.findall(text)
+          print
+
+
+  test_patterns("zzz\nabc",
+                [(r"^abc", "sequences of lowercae letters."),
+                 (r"\Aabc", "sequences of lowercae letters."),
+                 (r"\w+$", "sequences of lowercae letters."),
+                 (r"\w+\Z", "sequences of lowercae letters.")])
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+pattern '^abc' (sequences of lowercae letters.)
+
+  'zzz\nabc'
+['abc']
+
+pattern '\\Aabc' (sequences of lowercae letters.)
+
+  'zzz\nabc'
+[]
+
+pattern '\\w+$' (sequences of lowercae letters.)
+
+  'zzz\nabc'
+['zzz', 'abc']
+
+pattern '\\w+\\Z' (sequences of lowercae letters.)
+
+  'zzz\nabc'
+['abc']
+
+:END:
+
+同时还应该注意r"\n"与"\n"两者的区别 r"\n"代表包含两个字符"\","n"的一个字符串. "\n"is a one-character string containing a newline. 
+所以不注意他们之间的区别, 使用不慎就会导致意料不到的后果. 下面的例子对上一个例子进行修改进行演示.
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :session :results raw drawer output :exports both
+  import re
+
+  def test_patterns(text, patterns=[]):
+      for pattern, desc in patterns:
+          print "pattern %r (%s)\n" % (pattern, desc)
+          print "  %r" % text
+          regex = re.compile(pattern, re.MULTILINE)
+          print regex.findall(text)
+
+  test_patterns(r"zzz\nabc",
+                [(r"^abc", "sequences of lowercae letters."),
+                 (r"\Aabc", "sequences of lowercae letters."),
+                 (r"\w+$", "sequences of lowercae letters."),
+                 (r"\w+\Z", "sequences of lowercae letters.")])
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+pattern '^abc' (sequences of lowercae letters.)
+
+  'zzz\\nabc'
+[]
+pattern '\\Aabc' (sequences of lowercae letters.)
+
+  'zzz\\nabc'
+[]
+pattern '\\w+$' (sequences of lowercae letters.)
+
+  'zzz\\nabc'
+['nabc']
+pattern '\\w+\\Z' (sequences of lowercae letters.)
+
+  'zzz\\nabc'
+['nabc']
+:END:
+
+可以看出结果已经偏离了预期,和原来的结果又很大的不同.
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :session :results raw drawer output :exports both
+  import re
+
+  text = "This is some text -- with punctuation."
+  pattern = "is"
+  print "Text    :", text
+  print "pattern :", pattern
+
+  m = re.match(pattern, text)
+  print "Mathch :", m
+  s = re.search(pattern, text)
+  print "Search :", s
+#+END_SRC
+
+#+RESULTS:
+: Text    : This is some text -- with punctuation.
+: pattern : is
+: Mathch : None
+: Search : <_sre.SRE_Match object at 0x10c2a1920>
+
+** 限制搜索
+search()方法还可以接受可选的start和end位置参数, 将搜索限制在输入的一个子集中.
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :session :results raw drawer output :exports both
+  import re
+
+  text = "This is some text -- with punctuation."
+  pattern = r"\b\w*is\w*\b"
+  regex = re.compile(pattern)
+
+  pos = 0
+  while True:
+      match = regex.search(text, pos)
+      if not match:
+          break
+      s = match.start()
+      e = match.end()
+      print "%2d : %2d, '%s'" % (s, e-1, text[s:e])
+      pos = e
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+ 0 :  3, 'This'
+ 5 :  6, 'is'
+:END:
+
+** 用组解析匹配
+任何完整的正则表达式都可以转换为组, 并嵌套在一个更大的表达式中, 所有重复修饰符都可以应用到整个组作为一个整体, 要求重复整个组模式.
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :session :results raw drawer output :exports both
+  import re
+
+  def test_patterns(text, patterns=[]):
+      for pattern, desc in patterns:
+          print "pattern %r (%s)\n" % (pattern, desc)
+          print "  %r" % text
+          for match in re.finditer(pattern, text):
+              s = match.start()
+              e = match.end()
+              substr = text[s:e]
+              n_backslashed = text[:s].count("\\")
+              prefix = "." * (s + n_backslashed)
+              print "  %s%r" % (prefix, substr)
+          print
+      return
+
+  if __name__ == "__main__":
+      test_patterns("abbaaabbbbaaaaa",
+                   [(r"a(ab)", "a followed by literal ab"),
+                    (r"a(a*b*)", "a followed by 0-n a and 0-n b"),
+                    (r"a(ab)*", "a followed by 0-n ab"),
+                    (r"a(ab)+", "a followed by 1-n ab"),]) 
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+pattern 'a(ab)' (a followed by literal ab)
+
+  'abbaaabbbbaaaaa'
+  ....'aab'
+
+pattern 'a(a*b*)' (a followed by 0-n a and 0-n b)
+
+  'abbaaabbbbaaaaa'
+  'abb'
+  ...'aaabbbb'
+  ..........'aaaaa'
+
+pattern 'a(ab)*' (a followed by 0-n ab)
+
+  'abbaaabbbbaaaaa'
+  'a'
+  ...'a'
+  ....'aab'
+  ..........'a'
+  ...........'a'
+  ............'a'
+  .............'a'
+  ..............'a'
+
+pattern 'a(ab)+' (a followed by 1-n ab)
+
+  'abbaaabbbbaaaaa'
+  ....'aab'
+
+:END:
+
+要访问一个模式中单个组所匹配的所有子串, 使用Match对象的groups()方法. 返回一个字符串元组.
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :session :results raw drawer output :exports both
+  import re
+  text = "This is some text -- with punctuation."
+
+  print text
+  print
+  patterns = [(r"^(\w+)", "word at start of string"),
+              (r"(\w+)\S*$", "word at end, with optianal punctuation"),
+              (r"(\bt\w+)\W+(\w+)", "word starting with t, another word"),
+              (r"(\w+t)\b", "word ending with t"),]
+
+  for pattern, desc in patterns:
+      regex = re.compile(pattern)
+      match = regex.search(text)
+      print "Pattern %r (%s)\n" % (pattern, desc)
+      print "   ", match.groups()
+      print 
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+This is some text -- with punctuation.
+
+Pattern '^(\\w+)' (word at start of string)
+
+    ('This',)
+
+Pattern '(\\w+)\\S*$' (word at end, with optianal punctuation)
+
+    ('punctuation',)
+
+Pattern '(\\bt\\w+)\\W+(\\w+)' (word starting with t, another word)
+
+    ('text', 'with')
+
+Pattern '(\\w+t)\\b' (word ending with t)
+
+    ('text',)
+
+:END:
+
+使用group()来得到某个组的匹配.
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :session :results raw drawer output :exports both
+  import re
+  text = "This is some text -- with punctuation."
+
+  print "Input text            :", text
+  regex = re.compile(r"(\bt\w+)\W+(\w+)")
+  print "Pattern               :", regex.pattern
+
+  match = regex.search(text)
+  print "Entire match          :", match.group() 
+  print "Entire match          :", match.group(0) 
+  print "Word starting with 't':", match.group(1)
+  print "Word after 't' word   :", match.group(2)
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+Input text            : This is some text -- with punctuation.
+Pattern               : (\bt\w+)\W+(\w+)
+Entire match          : text -- with
+Entire match          : text -- with
+Word starting with 't': text
+Word after 't' word   : with
+:END:
+
+从结果可以看出group()与group(0)结果是一致的.
+
+** 命名组
+即将(pattern)改成(?Ppattern). 对返回的对象使用groupdict()方法, 获取到一个字典, 它将组名映射到匹配的子串.
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :session :results raw drawer output :exports both
+  import re
+  text = "This is some text -- with punctuation."
+
+  print text
+  print
+  patterns = [(r"^(?P<first_word>\w+)", "word at start of string"),
+              (r"(?P<last_word>\w+)\S*$", "word at end, with optianal punctuation"),
+              (r"(?P<t_word>\bt\w+)\W+(?P<other_word>\w+)", "word starting with t, another word"),
+              (r"(?P<ends_with_t>\w+t)\b", "word ending with t"),]
+
+  for pattern, desc in patterns:
+      regex = re.compile(pattern)
+      match = regex.search(text)
+      print "Pattern %r (%s)\n" % (pattern, desc)
+      print "   ", match.groups()
+      print "   ", match.groupdict()
+      print 
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+This is some text -- with punctuation.
+
+Pattern '^(?P<first_word>\\w+)' (word at start of string)
+
+    ('This',)
+    {'first_word': 'This'}
+
+Pattern '(?P<last_word>\\w+)\\S*$' (word at end, with optianal punctuation)
+
+    ('punctuation',)
+    {'last_word': 'punctuation'}
+
+Pattern '(?P<t_word>\\bt\\w+)\\W+(?P<other_word>\\w+)' (word starting with t, another word)
+
+    ('text', 'with')
+    {'other_word': 'with', 't_word': 'text'}
+
+Pattern '(?P<ends_with_t>\\w+t)\\b' (word ending with t)
+
+    ('text',)
+    {'ends_with_t': 'text'}
+
+:END:
+
+** 以下是更新后的`test_patterns()`, 它会显示与一个模式匹配的编号组和命名组, 使后面的例子更容易理解.
+因为组本身也是一个完整的正则表达式 所以组可以嵌套在其他组中, 构成更复杂的表达式,
+这时search返回的结果是各个子模式组和组成的大模式组对应的子串.
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :session :results raw drawer output :exports both
+  import re
+
+
+  def test_patterns(text, patterns=[]):
+      for pattern, desc in patterns:
+          print "pattern %r (%s)\n" % (pattern, desc)
+          print "    %r" % text
+          for match in re.finditer(pattern, text):
+              s = match.start()
+              e= match.end()
+              prefix = " " * (s)
+              print "    %s%r%s" % (prefix, text[s:e], " " * (len(text)-e)),
+              print match.groups()
+              if match.groupdict():
+                  print "%s%s" % (" " * (len(text)-s), match.groupdict())
+          print
+      return
+
+
+  test_patterns("abbaabbba",
+                [(r"a((a*)(b*))", "a followed by 0-n a and 0-n b")]
+                )
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+pattern 'a((a*)(b*))' (a followed by 0-n a and 0-n b)
+
+    'abbaabbba'
+    'abb'       ('bb', '', 'bb')
+       'aabbb'  ('abbb', 'a', 'bbb')
+            'a' ('', '', '')
+
+:END:
+
+组对于指定候选模式也很有用, 使用管道符号指示应当匹配某一个或另一个模式.
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :session :results raw drawer output :exports both
+  import re
+
+
+  def test_patterns(text, patterns=[]):
+      for pattern, desc in patterns:
+          print "pattern: %r desc: (%s)\n" % (pattern, desc)
+          print "    %r" % text
+          for match in re.finditer(pattern, text):
+              s = match.start()
+              e = match.end()
+              prefix = " " * (s)
+              try:
+                  print "    %s%r%s" % (prefix, text[s:e], " " * (len(text) - e))
+                  print "    matched groups: ", match.groups()
+                  print "    group(0): ", match.group(0), "group(1): ", match.group(1)
+                  print "    group(2): ",  match.group(2), "group(3): ", match.group(3), "group(4): ", match.group(4)
+                  print
+              except (IndexError, TypeError):
+                  print
+                  print
+                  pass
+              if match.groupdict():
+                  print "groupdict: %s%s" % (" " * (len(text) - s), match.groupdict())
+                  print
+      return
+
+
+  test_patterns(
+      "abbaabbba",
+      [
+          # a序列后面跟有一个完全由一个字母(a或b)构成的序列
+          (r"a((a+)|(b+))", "a then seq. of a or seq. of b"),
+          # a序列后面跟有一个可能包含a或b的序列
+          (r"a(((a)|(b))+)", "a then seq . of [ab]"),
+          (r"a([ab]+)", "a then seq . of [ab]"),
+          (r"a((a)+|(b)+)", "a then seq . of [ab]"),
+      ])
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+pattern: 'a((a+)|(b+))' desc: (a then seq. of a or seq. of b)
+
+    'abbaabbba'
+    'abb'      
+    matched groups:  ('bb', None, 'bb')
+    group(0):  abb group(1):  bb
+    group(2):  None group(3):  bb group(4): 
+
+       'aa'    
+    matched groups:  ('a', 'a', None)
+    group(0):  aa group(1):  a
+    group(2):  a group(3):  None group(4): 
+
+pattern: 'a(((a)|(b))+)' desc: (a then seq . of [ab])
+
+    'abbaabbba'
+    'abbaabbba'
+    matched groups:  ('bbaabbba', 'a', 'a', 'b')
+    group(0):  abbaabbba group(1):  bbaabbba
+    group(2):  a group(3):  a group(4):  b
+
+pattern: 'a([ab]+)' desc: (a then seq . of [ab])
+
+    'abbaabbba'
+    'abbaabbba'
+    matched groups:  ('bbaabbba',)
+    group(0):  abbaabbba group(1):  bbaabbba
+    group(2): 
+
+pattern: 'a((a)+|(b)+)' desc: (a then seq . of [ab])
+
+    'abbaabbba'
+    'abb'      
+    matched groups:  ('bb', None, 'b')
+    group(0):  abb group(1):  bb
+    group(2):  None group(3):  b group(4): 
+
+       'aa'    
+    matched groups:  ('a', 'a', None)
+    group(0):  aa group(1):  a
+    group(2):  a group(3):  None group(4): 
+
+:END:
+需要注意groups()与group(0)的区别:
+groups()相当于其他group组成的元祖但不包含group(0), 也就是从group(1)开始, 而group(0)相当于text[s:e].
+在r`a((a+)|(b+))`模式中, 所得到的结果groups为('bb', None, 'bb'),其中`bb`对应`((a+)|(b+))`的结果,也就是group(1),`None`对应模式
+`(a+)`的结果,也就是group(2),`bb`对应模式`(b+)`的结果,也就是group(3).
+可是在r"a((a|b)+)"模式中, 按理应该是有group(1),group(2),group(3)分别对应`((a|b)+)`,`(a)+`,`(b)+`这三种模式的结果,然而结果只有两种,
+没有`(b)+`这个模式下的结果,为什么?
+还需要注意`(a+)|(b+)`与`(a|b)+`的区别.
+
+** 非捕获组(noncapturing)
+如果匹配子模式的字符串不是从整个文本抽取的一部分, 此时定义一个包含子模式的组也很有用,称为非捕获组,它可以用来描述重复模式或候选模式,而不在返回值中区分字符串的
+匹配部分,创建非捕获组,使用语法`(?:pattern)`.
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :session :results raw drawer output :exports both
+    import re
+
+    def test_patterns(text, patterns=[]):
+        for pattern, desc in patterns:
+            print "pattern %r (%s)\n" % (pattern, desc)
+            print "    %r" % text
+            for match in re.finditer(pattern, text):
+                s = match.start()
+                e= match.end()
+                prefix = " " * (s)
+                print "    %s%r%s" % (prefix, text[s:e], " " * (len(text)-e)),
+                print match.groups()
+                if match.groupdict():
+                    print "%s%s" % (" " * (len(text)-s), match.groupdict())
+            print
+        return
+
+    test_patterns(
+        "abbaabbba",
+        [(r"a((a)+|(b)+)", "capture form"),
+        (r"a((?:a)+|(?:b)+)", "capture form"),]
+    )
+
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+pattern 'a((a)+|(b)+)' (capture form)
+
+    'abbaabbba'
+    'abb'       ('bb', None, 'b')
+       'aa'     ('a', 'a', None)
+
+pattern 'a((?:a)+|(?:b)+)' (capture form)
+
+    'abbaabbba'
+    'abb'       ('bb',)
+       'aa'     ('a',)
+
+:END:
+
+** 搜索选项
+*** 不区分大小写的匹配
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :session :results raw drawer output :exports both
+  import re
+
+  pattern = r"\bT\w+"
+  text = "This is some text -- with punctuation"
+  without_case = re.compile(pattern, re.IGNORECASE)
+  with_case = re.compile(pattern)
+
+  print "Text:\n %r" % text
+  print "Pattern:\n %s" % pattern
+  print "Case-sensitive:"
+  for match in with_case.findall(text):
+      print "    %r" % match
+  print "Case-insensitive"
+  for match in without_case.finditer(text):
+      print "    %r" % text[match.start():match.end()]
+
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+Text:
+ 'This is some text -- with punctuation'
+Pattern:
+ \bT\w+
+Case-sensitive:
+    'This'
+Case-insensitive
+    'This'
+    'text'
+:END:
+
+** 多行输入
+有两个标志会影响如何在多行输入中进行搜索: MULTILINE和DOTALL.
+*** MULTILINE
+MULTILINE标志会控制模式匹配代码如何对包含换行符的文本处理锚定指令.
+当打开多行模式时, 除了整个字符串外, 还要在每一行的开头和结尾应用`^`和`$`的锚定规则.
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :session :results raw drawer output :exports both
+  # -*- coding: utf-8 -*-
+  import re
+
+  text = "This is some text -- with punctuation.\nA second line."
+
+  # 这个模式会匹配输入的第一个或最后一个单词
+  pattern = r"(^\w+)|(\w+\S*$)"
+  single_line = re.compile(pattern)
+  multiline = re.compile(pattern, re.MULTILINE)
+
+  print "Text:\n    %r" % text
+  print "Pattern:\n    %s" % pattern
+  print "Single line: "
+  print single_line.findall(text)
+  for match in single_line.findall(text):
+      print "    %r" % (match,)
+  print "Multiline: "
+  print multiline.findall(text)
+  for match in multiline.findall(text):
+      print "    %r" % (match,)
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+Text:
+    'This is some text -- with punctuation.\nA second line.'
+Pattern:
+    (^\w+)|(\w+\S*$)
+Single line: 
+[('This', ''), ('', 'line.')]
+    ('This', '')
+    ('', 'line.')
+Multiline: 
+[('This', ''), ('', 'punctuation.'), ('A', ''), ('', 'line.')]
+    ('This', '')
+    ('', 'punctuation.')
+    ('A', '')
+    ('', 'line.')
+:END:
+
+*** DOTALL
+正常情况下, `.`匹配除了换行符以外的所有其他字符, 使用`DOTALL`则允许匹配换行符.
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :session :results raw drawer output :exports both
+    import re
+
+    text = "This is some text -- with punctuation.\nA second line."
+
+    pattern = r".+"
+    no_new_line = re.compile(pattern)
+    dotall = re.compile(pattern, re.DOTALL)
+
+    print "Text:\n    %r" % text
+    print "Pattern:\n    %s" % pattern
+    print "No new line: "
+    print no_new_line.findall(text)
+    for match in no_new_line.findall(text):
+        print "    %r" % (match,)
+    print "Dotall: "
+    print dotall.findall(text)
+    for match in dotall.findall(text):
+        print "    %r" % (match,)
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+Text:
+    'This is some text -- with punctuation.\nA second line.'
+Pattern:
+    .+
+No new line: 
+['This is some text -- with punctuation.', 'A second line.']
+    'This is some text -- with punctuation.'
+    'A second line.'
+Dotall: 
+['This is some text -- with punctuation.\nA second line.']
+    'This is some text -- with punctuation.\nA second line.'
+:END:
+
+** Unicode
+在Python2中, str对象使用的是ASCII字符集,而且正则表达式处理会假设模式和输入文本都是ASCII字符.转义码默认使用ASCII定义,这些假设意味着
+`\w+`只能匹配ASCII字符.如下所示:
+
+#+BEGIN_SRC ipython :preamble "# -*- coding: utf-8 -*-" :session :results raw drawer output :exports both
+  import re
+  s = "中wen"
+  match = re.search(r"\w+", s)
+  print s[match.start():match.end()]
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+wen
+:END:
+
+使用设置re.LOCALE参数进行尝试.
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :session :results raw drawer output :exports both
+  import re
+  import locale
+
+
+  locale.setlocale(locale.LC_ALL, "zh_CN.gb18030")
+  s = "中wen"
+  regxp = re.compile(r"\w+")
+  match = regxp.search(s, re.LOCALE)
+  print s[match.start():match.end()]
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+en
+:END:
+
+结果是错误的.
+要想在Python2中启用Unicode匹配, 需要在编译模式时或者调用模块级函数search()和match()时增加Unicode标志.
+
+#+BEGIN_SRC python 
+  # -*- coding: utf-8 -*-
+  import re
+  import codecs
+  import sys
+
+  # set standard output encoding to UTF-8
+  sys.stdout = codecs.getwriter("UTF-8")(sys.stdout)
+
+  # 如果text不是Unicode, 而是str, 如下所示, 则会产生错误, 具体原因未知
+  text = "你好, world!"
+  pattern = ur"\w+"
+  ascii_pattern = re.compile(pattern)
+  unicode_pattern = re.compile(pattern, re.UNICODE)
+
+  print "text: %s" % text
+  print "pattern: %s" % pattern
+  # print "ascii: ", u", ".join(ascii_pattern.findall(text))
+  print "unicode: ", u", ".join(unicode_pattern.findall(text))
+
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+  Traceback (most recent call last):
+    File "<stdin>", line 22, in <module>
+    File "<stdin>", line 17, in main
+    File "/System/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/codecs.py", line 357, in write
+      data, consumed = self.encode(object, self.errors)
+  UnicodeDecodeError: 'ascii' codec can't decode byte 0xe4 in position 6: ordinal not in range(128)
+:END:
+
+会产生错误, 必须进行修改, 将text修改成Unicode类型.
+
+
+#+BEGIN_SRC python
+  # -*- coding: utf-8 -*-
+  import re
+  import codecs
+  import sys
+
+  # set standard output encoding to UTF-8
+  sys.stdout = codecs.getwriter("UTF-8")(sys.stdout)
+
+  text = u"你好, world!"
+  pattern = ur"\w+"
+  ascii_pattern = re.compile(pattern)
+  unicode_pattern = re.compile(pattern, re.UNICODE)
+
+  print "text: %s" % text
+  print "pattern: %s" % pattern
+  print "ascii: ", u", ".join(ascii_pattern.findall(text))
+  print "unicode: ", u", ".join(unicode_pattern.findall(text))
+#+END_SRC
+
+#+RESULTS:
+text: 你好, world!
+pattern: \w+
+ascii:  world
+unicode:  你好, world
+:RESULTS:
+:END:
+
+#+BEGIN_SRC python
+  print unicode("学", "UTF-8").encode("gb2312")
+#+END_SRC
+
+#+RESULTS:
+ѧ
+:RESULTS:
+:END:
+
+** __unicode__与__str__的区别
+
+
+#+BEGIN_SRC python
+  class MyClass(object):
+      def __unicode__(self):
+          print "__unicode__ called"
+          return "孔子"
+
+      def __str__(self):
+          print "__str__ called"
+          return unicode(self).encode("UTF-8")
+
+
+  a = MyClass()
+  print a
+  print str(a)
+  print unicode(a)
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+UnicodeDecodeErrorTraceback (most recent call last)
+<ipython-input-170-32dbde2c71d6> in <module>()
+     10 
+     11 a = MyClass()
+---> 12 print a
+     13 print str(a)
+     14 print unicode(a)
+
+<ipython-input-170-32dbde2c71d6> in __str__(self)
+      6     def __str__(self):
+      7         print "__str__ called"
+----> 8         return unicode(self).encode("UTF-8")
+      9 
+     10 
+
+UnicodeDecodeError: 'ascii' codec can't decode byte 0xe5 in position 0: ordinal not in range(128)
+:END:
+
+为什么会出现以上的错误?下面进行演示:
+
+#+BEGIN_SRC python
+  >>> import sys
+  >>> sys.getdefaultencoding()
+  'ascii'
+  >>> zh = "孔子"
+  zh = "孔子"
+  >>> zh
+  '\xe5\xad\x94\xe5\xad\x90'
+  >>> unicode("孔子")
+  Traceback (most recent call last):
+    File "<stdin>", line 1, in <module>
+  UnicodeDecodeError: 'ascii' codec can't decode byte 0xe5 in position 0: ordinal not in range(128)
+  >>> zh.encode("UTF-8")
+  Traceback (most recent call last):
+    File "<stdin>", line 1, in <module>
+  UnicodeDecodeError: 'ascii' codec can't decode byte 0xe5 in position 0: ordinal not in range(128)
+#+END_SRC
+
+在上面的演示中可以看出在解析器内存中, 变量`zh = "孔子"`是以`'\xe5\xad\x94\xe5\xad\x90'`存储的.
+运行`unicode("孔子")`出现错误是因为解析器使用系统默认的`ASCII`编码去`decode`内存中`'\xe5\xad\x94\xe5\xad\x90'`这些字节内容成`Unicode`,
+相应的会引发错误.
+而运行`zh.encode("UTF-8")`出现错误是因为解析器先使用系统默认的`ASCII`编码去`decode`内存中`'\xe5\xad\x94\xe5\xad\x90'`这些字节内容成`Unicode`,
+再使用`decode`出来的`Unicode`使用`UTF-8`编码进行`encode`进一步存储到内存或硬盘中, 而在第一步就出现了错误.
+
+#+BEGIN_SRC python
+  class MyClass(object):
+      def __unicode__(self):
+          print "__unicode__ called"
+          return unicode("孔子", "UTF-8")
+
+      def __str__(self):
+          print "__str__ called"
+          return unicode(self).encode("UTF-8")
+
+
+  a = MyClass()
+  print a
+  print str(a)
+  print unicode(a)
+
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+__str__ called
+__unicode__ called
+孔子
+__str__ called
+__unicode__ called
+孔子
+__unicode__ called
+孔子
+:END:
+
+** 详细模式
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :session :results raw drawer output :exports both
+  import re
+
+  address = re.compile('[\w\d.+-]+@([\w\d.]+\.)+(com|org|edu)', re.UNICODE)
+
+  candidates = [
+      u'first.last@example.com',
+      u'first.last+category@gmail.com',
+      u'valid-address@mail.example.com',
+      u'not-valid@example.foo',
+      ]
+
+  for candidate in candidates:
+      match = address.search(candidate)
+      print '%-30s  %s' % (candidate, 'Matches' if match else 'No match')
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+first.last@example.com          Matches
+first.last+category@gmail.com   Matches
+valid-address@mail.example.com  Matches
+not-valid@example.foo           No match
+:END:
+
+转化为一种更详细的格式, 使之更容易扩展.
+
+[TODO: 52页]
