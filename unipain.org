@@ -1,0 +1,240 @@
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :session :results raw drawer output :exports both
+  my_unicode = u"Hi \u2119\u01b4\u2602\u210c\xf8\u1f24"
+  print len(my_unicode)
+
+  my_utf8 = my_unicode.encode("utf-8")
+  print len(my_utf8)
+  print my_utf8
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+9
+19
+Hi ℙƴ☂ℌøἤ
+:END:
+
+* 使用"replace"参数处理错误时, 因为无法得知多少`Unicode character`将
+会产生, 所以将`UTF-8 bytes`中每一个无法解码的单独的字节进行替换.
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :session :results raw drawer output :exports both
+  my_unicode = u"Hi \u2119\u01b4\u2602\u210c\xf8\u1f24"
+  my_utf8 = my_unicode.encode("utf-8")
+
+  print my_utf8.decode("ascii", "replace")
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+Hi ����������������
+:END:
+
+可以看出原来6个Unicode字符被替换成了16个字符.
+
+* 当将Unicode与str合并时, 会进行隐式转换, 将str解码成Unicode再合并
+
+#+BEGIN_SRC python
+  my_unicode = u"Hi \u2119\u01b4\u2602\u210c\xf8\u1f24"
+  my_utf8 = my_unicode.encode("utf-8")
+
+  print u"Hello" + my_utf8
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+UnicodeDecodeErrorTraceback (most recent call last)
+<ipython-input-6-2b25bece78c9> in <module>()
+      2 my_utf8 = my_unicode.encode("utf-8")
+      3 
+----> 4 print u"Hello" + my_utf8
+
+UnicodeDecodeError: 'ascii' codec can't decode byte 0xe2 in position 3: ordinal not in range(128)
+:END:
+因为使用了系统默认的`ASCII`进行解码所以产生错误.
+其他的隐式转换:
+#+BEGIN_SRC python
+>>> my_unicode = u"Hi \u2119\u01b4\u2602\u210c\xf8\u1f24"
+>>> my_string = "Hello world"
+>>> "Title: %s" % my_unicode
+u'Title: Hi \u2119\u01b4\u2602\u210c\xf8\u1f24'
+>>> u"Title: %s" % my_string
+u'Title: Hello world'
+" Even just attempting to print a unicode string will cause an implicit encoding: output is always bytes, 
+" so the unicode string has to be encoded into bytes before it can be printed.
+" 但是在这个例子中print my_unicode并没有引发错误, 为什么?
+>>> print my_unicode
+Hi ℙƴ☂ℌøἤ
+>>> my_utf8 = my_unicode.encode("utf-8")
+>>> my_string.encode("utf-8")    # silly
+'Hello world'
+>>> my_utf8.encode("utf-8")    # silly
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+UnicodeDecodeError: 'ascii' codec can't decode byte 0xe2 in position 3: ordinal not in range(128)
+#+END_SRC
+
+The next one is truly confusing: we ask to encode a byte string to UTF-8, and get an error about not being about to decode as ASCII! 
+The problem here is that byte strings can’t be encoded: remember encode is how you turn unicode into bytes. 
+So to perform the encoding you want, Python 2 needs a unicode string, which it tries to get by implicitly decoding your bytes as ASCII.
+So you asked to encode to UTF-8, and you get an error about decoding ASCII. 
+It pays to look carefully at the error, it has clues about what operation is being attempted, and how it failed.
+Lastly, we encode an ASCII string to UTF-8, which is silly, encode should be used on unicode string.
+To make it work, Python performs the same implicit decode to get a unicode string we can encode, but since the string is ASCII, 
+it succeeds, and then goes on to encode it as UTF-8, producing the original byte string, since ASCII is a subset of UTF-8.
+
+#+BEGIN_SRC python
+  Python 2.7.13 (default, Jul 18 2017, 09:17:00)
+  [GCC 4.2.1 Compatible Apple LLVM 8.1.0 (clang-802.0.42)] on darwin
+  Type "help", "copyright", "credits" or "license" for more information.
+  >>> my_unicode = u"Hi \u2119\u01b4\u2602\u210c\xf8\u1f24"
+  >>> print type(my_unicode)
+  <type 'unicode'>
+  >>> print repr(my_unicode)
+  u'Hi \u2119\u01b4\u2602\u210c\xf8\u1f24'
+  >>> print my_unicode
+  Hi ℙƴ☂ℌøἤ
+#+END_SRC
+
+When debugging your code, you can’t simply print a value to see what it is. 
+You need to look at the type, and you may need to look at the repr of the value in order to get to the bottom of what data you have.
+
+* 读写文件
+内置的open()方法打开文件时,read()读取的是str,读取后需要使用正确的编码格式进行decode().
+write()写入时,如果参数是unicode,则需要使用你希望写入的编码进行encode()，
+如果是其他编码格式的str，则需要先用该str的编码进行decode()，转成unicode后再使用写入的编码进行encode().
+如果直接将unicode作为参数传入write()方法，Python将先使用源代码文件声明的字符编码进行编码然后写入.
+
+#+BEGIN_SRC python
+  # coding: UTF-8
+ 
+  f = open('test.txt')
+  s = f.read()
+  f.close()
+  print type(s) # <type 'str'>
+  # 已知是GBK编码，解码成unicode
+  u = s.decode('GBK')
+ 
+  f = open('test.txt', 'w')
+  # 编码成UTF-8编码的str
+  s = u.encode('UTF-8')
+  f.write(s)
+  f.close()
+#+END_SRC
+
+另外,模块codecs提供了一个open()方法,可以指定一个编码打开文件,使用这个方法打开的文件读取返回的将是unicode.写入时,如果参数是unicode,则使用open()时指定的编码进行编码后写入；如果是str,则先根据源代码文件声明的字符编码,解码成unicode后再进行前述操作.相对内置的open()来说,这个方法比较不容易在编码上出现问题.
+
+#+BEGIN_SRC python
+  # coding: GBK
+ 
+  import codecs
+ 
+  f = codecs.open('test.txt', encoding='UTF-8')
+  u = f.read()
+  f.close()
+  print type(u) # <type 'unicode'>
+ 
+  f = codecs.open('test.txt', 'a', encoding='UTF-8')
+  # 写入unicode
+  f.write(u)
+ 
+  # 写入str,自动进行解码编码操作
+  # GBK编码的str
+  s = '汉'
+  print repr(s) # '\xba\xba'
+  # 这里会先将GBK编码的str解码为unicode再编码为UTF-8写入
+  f.write(s) 
+  f.close()
+#+END_SRC
+
+* Python3中没有bytes和Unicode之间的隐式转换
+
+#+BEGIN_SRC emacs-lisp :results none
+  (setq org-babel-python-command "python3")
+#+END_SRC
+
+#+BEGIN_SRC python 
+  Python 3.6.2 (v3.6.2:5fd33b5926, Jul 16 2017, 20:11:06)
+  [GCC 4.2.1 (Apple Inc. build 5666) (dot 3)] on darwin
+  Type "help", "copyright", "credits" or "license" for more information.
+  >>> "Hello" + b"world"
+  Traceback (most recent call last):
+    File "<stdin>", line 1, in <module>
+  TypeError: must be str, not bytes
+  >>> "Hello" == b"Hello"
+  False
+  >>> d = {"Hello": "world"}
+  >>> d[b"Hello"]
+  Traceback (most recent call last):
+    File "<stdin>", line 1, in <module>
+  KeyError: b'Hello'
+#+END_SRC
+"Hello" + b"world"
+TypeError: Can't convert "bytes" object t str implicitly.
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :session :results raw drawer output :exports both
+  import sys
+  print sys.version
+  print u"Hello" == "Hello"
+
+  d = {"Hello": "world"}
+  print d[b"Hello"]
+  print d[u"Hello"]
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+2.7.10 (default, Feb  7 2017, 00:08:15) 
+[GCC 4.2.1 Compatible Apple LLVM 8.0.0 (clang-800.0.34)]
+True
+world
+world
+:END:
+
+In addition, Python 2 considers a unicode string and a byte string equal if they contain the same ASCII bytes, 
+and Python 3 won’t. A consequence of this is that unicode dictionary keys can’t be found with byte strings, 
+and vice-versa, as they can be in Python 2.
+This drastically changes the nature of Unicode pain in Python 3. 
+In Python 2, mixing unicode and bytes succeeds so long as you only use ASCII data. 
+In Python 3, it fails immediately regardless of the data.
+So Python 2’s pain is deferred: you think your program is correct, and find out later that it fails with exotic characters.
+With Python 3, your code fails immediately, so even if you are only handling ASCII, you have to explicitly deal with the difference between bytes and unicode.
+Python 3 is strict about the difference between bytes and unicode. 
+You are forced to be clear in your code which you are dealing with. This has been controversial, and can cause you pain.
+
+
+#+BEGIN_SRC python
+  >>> import locale
+  >>> open("/Users/c/Python/hi_utf8.txt", mode="tr", encoding=locale.getpreferredencoding()).read()
+  'Hi ℙƴ☂ℌøἤ\n'
+  >>> open("/Users/c/Python/hi_utf8.txt", "r").read()
+  'Hi ℙƴ☂ℌøἤ\n'
+  >>> open("/Users/c/Python/hi_utf8.txt", "r", encoding="utf-8").read()
+  'Hi ℙƴ☂ℌøἤ\n'
+  >>> open("/Users/c/Python/hi_utf8.txt", "rb").read()    # 其实结果就是Python3 中str编码后存储在文件中, 将其原样取出, 并加前缀"b"
+  b'Hi \xe2\x84\x99\xc6\xb4\xe2\x98\x82\xe2\x84\x8c\xc3\xb8\xe1\xbc\xa4\n'
+  >>> open("/Users/c/Python/hi_utf8.txt", "rb", encoding="utf-8").read()    # 在b模式下, encoding参数是不能使用的
+  Traceback (most recent call last):
+    File "<stdin>", line 1, in <module>
+  ValueError: binary mode doesn't take an encoding argument
+  >>> open("/Users/c/Python/hello.txt", "r").read()
+  'Hello, world\n'
+  >>> open("/Users/c/Python/hello.txt", "rb").read()
+  b'Hello, world\n'
+#+END_SRC
+
+Because of this new strictness, Python 3 has changed how you read files. 
+Python has always had two modes for reading files: binary and text. 
+In Python 2, it only affected the line endings, and on Unix platforms, even that was a no-op.
+In Python 3, the two modes produce different results.
+When you open a file in text mode, either with “r”, or by defaulting the mode entirely, 
+the data read from the file is implicitly decoded into Unicode, and you get str objects.
+If you open a file in binary mode, by supplying “rb” as the mode, 
+then the data read from the file is bytes, with no processing done on them.
+The implicit conversion from bytes to unicode uses the encoding returned from locale.getpreferredencoding(), 
+and it may not give you the results you expect. 
+For example, when we read hi_utf8.txt, it’s being decoded using the locale’s preferred encoding, 
+which since I created these samples on Windows, is “cp1252”. 
+Like ISO 8859-1, CP-1252 is a one-byte character code that will accept any byte value, so it will never raise a UnicodeDecodeError. That also means that it will happily decode data that isn’t actually CP-1252, and produce garbage.
+To get the file read properly, you should specify an encoding to use. 
+The open() function now has an optional encoding parameter.
