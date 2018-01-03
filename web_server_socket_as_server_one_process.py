@@ -1,7 +1,6 @@
 import socket
 import StringIO
 import sys
-from cheese import cheese
 
 class WSGIServer(object):
 
@@ -62,6 +61,7 @@ class WSGIServer(object):
 
     def parse_request(self, text):
         request_line = text.splitlines()[0]
+        print repr(request_line)
         request_line = request_line.rstrip('\r\n')
         # Break down the request line into components
         (self.request_method,  # GET
@@ -139,5 +139,4 @@ if __name__ == '__main__':
     application = getattr(module, application)
     httpd = make_server(SERVER_ADDRESS, application)
     print('WSGIServer: Serving HTTP on port {port} ...\n'.format(port=PORT))
-    cheese()
     httpd.serve_forever()
