@@ -1,174 +1,915 @@
 * 格式化输出
 
-  #+BEGIN_SRC python :session :results raw drawer output :exports both
-    print(format(0.3456, "6.1%"))
-  #+END_SRC
+#+BEGIN_SRC python :session :results raw drawer output :exports both
+  print(format(0.3456, "6.1%"))
+#+END_SRC
 
-  #+RESULTS:
-  :RESULTS:
-   34.6%
-  :END:
+#+RESULTS:
+:RESULTS:
+34.6%
+:END:
   
 * Python文件类型
 ** 源代码
-   以"py"为扩展名, 由Python程序解释,不需要编译
+以"py"为扩展名, 由Python程序解释,不需要编译
 
 ** 字节代码
-   Python源文件经编译后生成的扩展名为"pyc"的文件
+Python源文件经编译后生成的扩展名为"pyc"的文件
 
-  #+BEGIN_SRC python :session :results raw drawer output :exports both
-    import py_compile
-    py_compile.compile("hello.py")
-  #+END_SRC
+#+BEGIN_SRC python 
+  import py_compile
+  py_compile.compile("hello.py")
+#+END_SRC
 
 ** 优化代码
-   经过优化的源代码, 扩展名为"pyo"
+经过优化的源代码, 扩展名为"pyo"
 
-  #+BEGIN_SRC python :session :results raw drawer output :exports both
-    python -O -m py_compile hello.py
-  #+END_SRC
+#+BEGIN_SRC python
+  python -O -m py_compile hello.py
+#+END_SRC
 
 * 运算符的优先级
-  运算符优先级由低到高, 级别高的先运算
-  | lambda     |                     |
-  | 赋值运算   | x=                  |
-  | 逻辑运算   | or                  |
-  | 逻辑运算   | and                 |
-  | 逻辑运算   | not                 |
-  | 成员测试   | in, not in          |
-  | 同一性测试 | is, is not          |
-  | 关系运算   | <, <=, >, >=,!=, == |
-  | 按位或     | \vert               |
-  | 按位异或   | ^                   |
-  | 按位与     | &                   |
-  | 移位       | <<, >>              |
-  | 算术运算   | +, -, *, /, %       |
-  | 正负号     | +x, -x              |
-  | 按位翻转   | ~x                  |
-  | 指数       | **                  |
+运算符优先级由低到高, 级别高的先运算
+
+|------------+---------------------|
+| lambda     |                     |
+| 赋值运算   | x=                  |
+| 逻辑运算   | or                  |
+| 逻辑运算   | and                 |
+| 逻辑运算   | not                 |
+| 成员测试   | in, not in          |
+| 同一性测试 | is, is not          |
+| 关系运算   | <, <=, >, >=,!=, == |
+| 按位或     | \vert               |
+| 按位异或   | ^                   |
+| 按位与     | &                   |
+| 移位       | <<, >>              |
+| 算术运算   | +, -, *, /, %       |
+| 正负号     | +x, -x              |
+| 按位翻转   | ~x                  |
+| 指数       | **                  |
+
 * 数据类型
 ** 数字类型
 *** 整型
-    在Python2中整数int表示的范围由sys.maxint界定
-    而在python3中就不是如此了, 就算一个数字大于sys.maxsize, Python还是将其认定为int类型
+在Python2中整数int表示的范围由sys.maxint界定
+而在python3中就不是如此了, 就算一个数字大于sys.maxsize, Python还是将其认定为int类型
 
-  #+BEGIN_SRC ipython :session :results raw drawer output :exports both
-    num1 = 123
-    print type(num1)
-    num2 = 123L
-    print type(num2)
-    import sys
-    print sys.maxint
-    print type(sys.maxint+1)
-    print sys.maxsize
-    print type(sys.maxsize+1)
+#+BEGIN_SRC ipython :session :results raw drawer output :exports both
+  num1 = 123
+  print type(num1)
+  num2 = 123L
+  print type(num2)
+  import sys
+  print sys.maxint
+  print type(sys.maxint+1)
+  print sys.maxsize
+  print type(sys.maxsize+1)
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+<type 'int'>
+<type 'long'>
+9223372036854775807
+<type 'long'>
+9223372036854775807
+<type 'long'>
+:END:
+
+*** 浮点型, 复数型complex
+
+#+BEGIN_SRC ipython :session :results raw drawer output :exports both
+  num = 3e+7
+  print type(num)
+  num = 8.32e-36j
+  print type(num)
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+<type 'float'>
+<type 'complex'>
+:END:
+
+** 字符串类型
+
+#+BEGIN_SRC ipython :session :results raw drawer output :exports both
+  mail = """
+  tom:
+      i am jack
+      goodbye
+  """
+  print mail
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+
+tom:
+    i am jack
+    goodbye
+
+:END:
+
+注意步长取值正负时, 相关的前后取值对结果的影响
+#+BEGIN_SRC ipython :session :results raw drawer output :exports both
+  a = "abcde"
+  print a[-2:-5]
+  print a[-5:-2]
+  print a[-2:-5:-1]
+  print a[-5:-2:-1]
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+
+abc
+dcb
+
+:END:
+
+字符串可以使用内置函数max, min, len, in, cmp
+序列可以使用内置函数max, min, len, in, cmp
+
+#+BEGIN_SRC ipython :session :results raw drawer output :exports both
+  str1 = "12345"
+  str2 = "abcde"
+  print max(str1)
+  print min(str2)
+  print cmp(str1, str2)
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+5
+a
+-1
+:END:
+
+** 列表
+删除列表中的元素也可以使用内置函数del
+
+#+BEGIN_SRC ipython :session :results raw drawer output :exports both
+  l = [1, 2, 3, 4, 5]
+  del l[0]
+  print l
+  l.remove(2)
+  print l
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+[2, 3, 4, 5]
+[3, 4, 5]
+:END:
+
+** 字典
+可以使用变量名来作为字典的键
+
+#+BEGIN_SRC ipython :session :results raw drawer output :exports both
+  name = "a"
+  dic = {name: "Folrolo", "age": 14}
+  print name
+  print dic[name]
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+a
+Folrolo
+:END:
+
+* 元类编程metaprogramming
+Python允许对象是自省的(也称为反射).
+即自省对象能够描述自己: 实例属于哪个类? 类有哪些祖先? 对象可以使用哪些方法和属性?
+自省让处理对象的函数或方法根据传递给函数或方法的对象类型做决定.
+即使没有自省, 函数也常常根据实例数据进行划分, 例如, 到jane.room_number的路线
+不同于到bob.room_number的路线, 因为他两在不同的房间.
+利用自省, 可以安全地计算jane所有奖金的同时, 跳过对bob的计算, 例如, 因为他
+jane有.profit_share属性, 或者因为bob是子类Hourly(Employee)的实例.
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer output :exports both :session ChattyType
+  class ChattyType(type):
+      def __new__(cls, name, bases, dct):
+          print "Allocating memory for class: ", name
+          return type.__new__(cls, name, bases, dct)
+
+      def __init__(cls, name, bases, dct):
+          print "Initialzing class: ", name
+          super(ChattyType, cls).__init__(name, bases, dct)
+
+      def whoami(cls):
+          print "I am a: ", cls.__name__
+
+
+  X = ChattyType("X", (), {"foo": lambda self: "foo"})
+  X.whoami()
+  try:
+      ChattyType.whoami()
+  except Exception as e:
+      print e
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+Allocating memory for class:  X
+Initialzing class:  X
+I am a:  X
+unbound method whoami() must be called with ChattyType instance as first argument (got nothing instead)
+:END:
+
+类可以从父类继承元类, 这与将元类做为父类不一样.
+对于经典类, 定义一个__metaclass__类变量强制使用定制元类,
+必须在类定义本身中设置__metaclass__, 如果在创建类实例对象后设置属性,
+则不会使用元类.
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer output :exports both :session ChattyType
+  class Bar(object):
+      __metaclass__ = ChattyType
+
+      def barmethod(self):
+          print "bar"
+
+
+  Bar().barmethod()
+  Bar.whoami()
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+Allocating memory for class:  Bar
+Initialzing class:  Bar
+bar
+I am a:  Bar
+:END:
+可以看出`Bar()`类本省没有`whoami()`方法, 是元类产生的.
+
+** 元类的作用1: 面向方面编程(Aspect-Oriented Programming)
+在设计初不能确切地知道类需要做什么, 某个细节取决于稍后才能得到的信息.
+
+创建`dump.py`文件.
+
+#+BEGIN_SRC python :preamble # -*- coding: utf-8 -*- :results output 
+  import sys
+
+  metaclass = ""
+
+  if len(sys.argv) > 2:
+      module, metaklass = sys.argv[1:3]
+      m = __import__(module, globals(), locals(), [metaklass])
+      metaclass = getattr(m, metaklass)
+
+
+  class Data(object):
+      if metaclass:
+          __metaclass__ = metaclass
+
+      def __init__(self):
+          self.num = 38
+          self.lst = ["a", "b", "c"]
+          self.str = "spam"
+
+      def dumps(self):
+          return "self"
+
+      def __str__(self):
+          return self.dumps()
+
+
+  data = Data()
+  print data
+#+END_SRC
+
+#+RESULTS:
+: self
+
+在终端中运行
+
+#+BEGIN_SRC sh
+  ➜ python dump.py gnosis.magic MetaXMLPickler
+  <?xml version="1.0"?>
+  <!DOCTYPE PyObject SYSTEM "PyObjects.dtd">
+  <PyObject module="__main__" class="Data" id="4332679056">
+  <attr name="lst" type="list" id="4332700304" >
+  <item type="string" value="a" />
+  <item type="string" value="b" />
+  <item type="string" value="c" />
+  </attr>
+  <attr name="num" type="numeric" value="38" />
+  <attr name="str" type="string" value="spam" />
+  </PyObject>
+#+END_SRC
+
+这是因为使用了`gnosis.magic`模块中的`MetaXMLPickler`元类重写了`dumps()`函数.
+源代码如下:
+
+#+BEGIN_SRC python
+  class MetaPickler(type):
+      "Metaclass for gnosis.xml.pickle serialization"
+      def __init__(cls, name, bases, dict):
+          from gnosis.xml.pickle import dumps
+          super(MetaPickler, cls).__init__(name, bases, dict)
+          setattr(cls, 'dumps', dumps)
+  MetaXMLPickler = MetaPickler
+#+END_SRC
+
+可见元类的常见用法如`MetaPickler`所示: 添加, 删除, 重命名或替换所产生
+类中定义的方法.
+
+** 元类的查找顺序
+
+#+BEGIN_QUOTE
+  If dict['__metaclass__'] exists, it is used.
+  Otherwise, if there is at least one base class, its metaclass is used (this looks for a __class__ attribute first and if not found, uses its type).
+  Otherwise, if a global variable named __metaclass__ exists, it is used.
+  Otherwise, the old-style, classic metaclass (types.ClassType) is used.
+#+END_QUOTE
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer output :exports both :session
+  class ChattyType(type):
+      def __new__(cls, name, bases, dct):
+          print "Allocating memory for class: ", name
+          return type.__new__(cls, name, bases, dct)
+
+      def __init__(cls, name, bases, dct):
+          print "Initialzing class: ", name
+          super(ChattyType, cls).__init__(name, bases, dct)
+
+      def whoami(cls):
+          print "I am a: ", cls.__name__
+
+
+  __metaclass__ = ChattyType
+
+
+  # 注意如果想要模块全局元类变量 `__metaclass__` 生效, 在此后的
+  # 所有类都不能继承自 `object`.
+  # 即`class Bar(object):` 是不能使得自定义的元类生效的, 反而是使用
+  # `object` 的元类 `type`.
+  class Bar():
+      def barmethod(self):
+          print "bar"
+
+
+  Bar().barmethod()
+  Bar.whoami()
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+Allocating memory for class:  Bar
+Initialzing class:  Bar
+bar
+I am a:  Bar
+:END:
+
+* Python多线程join()的作用
+- 阻塞主进程, 专注于多线程中的任务
+- 多线程多join()方法, 依次执行各线程的join()方法, 前一个结束才能执行后一个
+- 前一个线程的join()无参数, 则等待该线程结束, 再开始执行下一个线程的join()方法
+- 参数timeout为指定线程的阻塞时间, 时间到后就继续执行thread.join()语句后的代码
+ 
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer output list :exports both :session
+  import threading
+  import time
+
+
+  def doWaiting1():
+      print('start waiting1: ' + time.strftime('%H:%M:%S') + "\n")
+      time.sleep(3)
+      print('stop waiting1: ' + time.strftime('%H:%M:%S') + "\n")
+
+
+  def doWaiting2():
+      print('start waiting2: ' + time.strftime('%H:%M:%S') + "\n")
+      time.sleep(8)
+      print('stop waiting2: ' + time.strftime('%H:%M:%S') + "\n")
+
+
+  tasks = []
+  thread1 = threading.Thread(target=doWaiting1)
+  thread1.start()
+  tasks.append(thread1)
+  thread2 = threading.Thread(target=doWaiting2)
+  thread2.start()
+  tasks.append(thread2)
+  print('start join: ' + time.strftime('%H:%M:%S') + "\n")
+  for task in tasks:
+      task.join()
+  print('end join: ' + time.strftime('%H:%M:%S') + "\n")
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+- start join: 01:07:57
+- start waiting1: 01:07:57
+- start waiting2: 01:07:57
+- stop waiting1: 01:08:00
+- stop waiting2: 01:08:05
+- end join: 01:08:05
+:END:
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer output list :exports both :session
+  import threading
+  import time
+
+
+  def doWaiting1():
+      print('start waiting1: ' + time.strftime('%H:%M:%S') + "\n")
+      time.sleep(3)
+      print('stop waiting1: ' + time.strftime('%H:%M:%S') + "\n")
+
+
+  def doWaiting2():
+      print('start waiting2: ' + time.strftime('%H:%M:%S') + "\n")
+      time.sleep(8)
+      print('stop waiting2: ' + time.strftime('%H:%M:%S') + "\n")
+
+
+  tasks = []
+  thread1 = threading.Thread(target=doWaiting1)
+  thread1.start()
+  tasks.append(thread1)
+  thread2 = threading.Thread(target=doWaiting2)
+  thread2.start()
+  tasks.append(thread2)
+  print('start join: ' + time.strftime('%H:%M:%S') + "\n")
+  for task in tasks:
+      task.join(timeout=2)
+  print('end join: ' + time.strftime('%H:%M:%S') + "\n")
+
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+- start waiting1: 01:14:15
+- start waiting2: 01:14:15
+- start join: 01:14:15
+- stop waiting1: 01:14:18
+- end join: 01:14:19
+:END:
+
+
+* 常见错误
+** 使用列表作为函数的可选参数默认值
+
+#+BEGIN_SRC ipython :session :results raw drawer output :exports both
+  def foo(bar=[]):
+      bar.append("baz")
+      return bar
+
+  print foo()
+  print foo()
+  print foo()
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+['baz']
+['baz', 'baz']
+['baz', 'baz', 'baz']
+:END:
+
+因为可选参数默认值的设置在Python中只会被执行一次, 即在定义该函数的时候.
+在函数foo()被定义是, 参数bar被初始化为默认值(最刚开始是一个空列表), 但是之后每次
+函数foo()被调用时, 都会继续使用初始化生成的那个列表.
+
+解决方法:
+
+#+BEGIN_SRC ipython :session :results raw drawer output :exports both
+  def foo(bar=None):
+      if bar is None:
+          bar = []
+      bar.append("baz")
+      return bar
+  print foo()
+  print foo()
+  print foo()
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+['baz']
+['baz']
+['baz']
+:END:
+
+** 错误指定异常代码块的参数
+
+   #+BEGIN_SRC python
+     try:
+         l = ["a", "b"]
+         int(l[2])
+     except ValueError, IndexError:
+         pass
+   #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  IndexErrorTraceback (most recent call last)
+  <ipython-input-10-9f1f803fe9e1> in <module>()
+        1 try:
+        2     l = ["a", "b"]
+  ----> 3     int(l[2])
+        4 except ValueError, IndexError:
+        5     pass
+
+  IndexError: list index out of range
+  :END:
+
+在上述代码中, except语句没有捕获IndexError异常, 而是将出现的异常绑定到了一个名为
+IndexError的参数中.
+
+解决方法:
+
+#+BEGIN_SRC ipython :session :results raw drawer output :exports both
+  try:
+      l = ["a", "b"]
+      int(l[2])
+  except (ValueError, IndexError) as e:
+      print e
+      pass
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+list index out of range
+:END:
+
+** 错误理解Python中的变量名解析
+
+   #+BEGIN_SRC ipython
+     x = 10
+     def foo():
+         x += 1
+         print x
+     foo()
+   #+END_SRC
+
+   #+RESULTS:
+   UnboundLocalErrorTraceback (most recent call last)
+   <ipython-input-17-7d1ba0f04350> in <module>()
+        3     x += 1
+        4     print x
+   ----> 5 foo()
+
+   <ipython-input-17-7d1ba0f04350> in foo()
+         1 x = 10
+         2 def foo():
+   ----> 3     x += 1
+         4     print x
+         5 foo()
+
+   UnboundLocalError: local variable 'x' referenced before assignment
+
+   :RESULTS:
+   :END:
+
+这是因为在某个作用域内为变量赋值时, 该变量被Python解释器自动视为该作用
+域的本地变量, 并取代任何上一层作用域内相同名称的变量.
+    
+  #+BEGIN_SRC ipython
+    lst = [1, 2, 3]
+    def foo():
+        lst.append(5)
+    foo()
+    print lst
   #+END_SRC
 
   #+RESULTS:
   :RESULTS:
-  <type 'int'>
-  <type 'long'>
-  9223372036854775807
-  <type 'long'>
-  9223372036854775807
-  <type 'long'>
+  [1, 2, 3, 5]
   :END:
 
-*** 浮点型, 复数型complex
+  #+BEGIN_SRC ipython
+    lst = [1, 2, 3]
+    def foo():
+        lst += [4]
+    foo()
+    print lst
+  #+END_SRC
 
-    #+BEGIN_SRC ipython :session :results raw drawer output :exports both
-      num = 3e+7
-      print type(num)
-      num = 8.32e-36j
-      print type(num)
-    #+END_SRC
+  #+RESULTS:
+  :RESULTS:
+  UnboundLocalErrorTraceback (most recent call last)
+  <ipython-input-20-c4cdd4b0687e> in <module>()
+        2 def foo():
+        3     lst += [4]
+  ----> 4 foo()
+        5 print lst
 
-    #+RESULTS:
-    :RESULTS:
-    <type 'float'>
-    <type 'complex'>
-    :END:
-** 字符串类型
+  <ipython-input-20-c4cdd4b0687e> in foo()
+        1 lst = [1, 2, 3]
+        2 def foo():
+  ----> 3     lst += [4]
+        4 foo()
+        5 print lst
 
-   #+BEGIN_SRC ipython :session :results raw drawer output :exports both
-     mail = """
-     tom:
-         i am jack
-         goodbye
-     """
-     print mail
-   #+END_SRC
+  UnboundLocalError: local variable 'lst' referenced before assignment
+  :END:
+函数foo()在尝试为lst赋值, lst被解释器认为是函数本地作用域的变量, 同时为lst赋值的
+又是居于lst变量本身, lst也被认为是函数本地作用域的变量, 所以解释器认为该变量还没有被定义, 出现错误.
 
-   #+RESULTS:
-   :RESULTS:
+** 在遍历列表时更改列表
 
-   tom:
-       i am jack
-       goodbye
+#+BEGIN_SRC ipython
+  odd = lambda x : bool(x % 2)
+  numbers = [n for n in xrange(10)]
+  for i in xrange(len(numbers)):
+      if odd(numbers[i]):
+          del numbers[i]
+#+END_SRC
 
-   :END:
+#+RESULTS:
+IndexErrorTraceback (most recent call last)
+<ipython-input-21-4a2e197bb0f6> in <module>()
+      2 numbers = [n for n in xrange(10)]
+      3 for i in xrange(len(numbers)):
+----> 4     if odd(numbers[i]):
+      5         del numbers[i]
 
-   注意步长取值正负时, 相关的前后取值对结果的影响
-   #+BEGIN_SRC ipython :session :results raw drawer output :exports both
-     a = "abcde"
-     print a[-2:-5]
-     print a[-5:-2]
-     print a[-2:-5:-1]
-     print a[-5:-2:-1]
-   #+END_SRC
+IndexError: list index out of range
+:RESULTS:
+:END:
 
-   #+RESULTS:
-   :RESULTS:
+解决方法:
 
-   abc
-   dcb
+#+BEGIN_SRC ipython :session :results raw drawer output :exports both
+  odd = lambda x : bool(x % 2)
+  numbers = [n for n in xrange(10)]
+  numbers[:] = [n for n in numbers if odd(n)]
+  print numbers
+#+END_SRC
 
-   :END:
+#+RESULTS:
+:RESULTS:
+[1, 3, 5, 7, 9]
+:END:
 
-   字符串可以使用内置函数max, min, len, in, cmp
-   序列可以使用内置函数max, min, len, in, cmp
-   #+BEGIN_SRC ipython :session :results raw drawer output :exports both
-     str1 = "12345"
-     str2 = "abcde"
-     print max(str1)
-     print min(str2)
-     print cmp(str1, str2)
-   #+END_SRC
+使用列表解析可以避免出现这种问题.
 
-   #+RESULTS:
-   :RESULTS:
-   5
-   a
-   -1
-   :END:
-** 列表
-   删除列表中的元素也可以使用内置函数del
-   #+BEGIN_SRC ipython :session :results raw drawer output :exports both
-     l = [1, 2, 3, 4, 5]
-     del l[0]
-     print l
-     l.remove(2)
-     print l
-   #+END_SRC
-   
-   #+RESULTS:
-   :RESULTS:
-   [2, 3, 4, 5]
-   [3, 4, 5]
-   :END:
+** 在函数中执行exec不会影响全局变量
 
-** 字典
-   可以使用变量名来作为字典的键
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :session :results raw drawer output list :exports both
+  x = 2
 
-   #+BEGIN_SRC ipython :session :results raw drawer output :exports both
-     name = "a"
-     dic = {name: "Folrolo", "age": 14}
-     print name
-     print dic[name]
-   #+END_SRC
 
-   #+RESULTS:
-   :RESULTS:
-   a
-   Folrolo
-   :END:
+  def foo():
+      print x
+
+  def bar():
+      print x
+      x = 3
+
+
+  def hmn():
+      print x
+      exec("x = 3")
+      print "x in function hmn(): ", x
+
+
+  try:
+      foo()
+  except:
+      print "Oops"
+
+
+  try:
+      bar()
+  except Exception as e:
+      print e
+      print "Oops"
+
+
+  try:
+      hmn()
+  except:
+      print "Oops"
+
+  print "x in global: ", x
+
+  exec("x = 3")
+  print "x in global after exec: ", x
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+- 2
+- local variable 'x' referenced before assignment
+- Oops
+- 2
+- x in function hmn():  3
+- x in global:  2
+- x in global after exec:  3
+:END:
+
+** 理解__mro__和元类
+
+以下为Python2的输出结果:
+
+#+BEGIN_SRC python :results output list 
+  class M(type):
+      def __init__(cls, name, bases, attrs, **kwargs):
+          super(M, cls).__init__(name, bases, attrs, **kwargs)
+
+          def f(self):
+              try:
+                  super(cls, self).f()
+              except AttributeError:
+                  pass
+              print name, type(self).__name__ 
+          cls.f = f
+
+
+  class A():
+      __metaclass__ = M
+      pass
+
+
+  class AA(A):
+      pass
+
+
+  class AAA(AA):
+      pass
+
+
+  class B():
+      __metaclass__ = M
+      pass
+
+
+  class C(AAA, B):
+      __metaclass__ = M
+      pass
+
+
+  C().f()
+  print(C.__mro__)
+#+END_SRC
+
+#+RESULTS:
+: - B C
+: - A C
+: - AA C
+: - AAA C
+: - C C
+: - (<class '__main__.C'>, <class '__main__.AAA'>, <class '__main__.AA'>, <class '__main__.A'>, <class '__main__.B'>, <type 'object'>)
+
+以下为Python3的输出结果:
+
+#+BEGIN_SRC python 
+  class M(type):
+      def __init__(cls, name, bases, attrs, **kwargs):
+          super().__init__(name, bases, attrs, **kwargs)
+
+          def f(self):
+              try:
+                  super(cls, self).f()
+              except AttributeError:
+                  pass
+              print (name, type(self).__name__) 
+          cls.f = f
+
+
+  class A(metaclass=M):
+      pass
+
+
+  class AA(A):
+      pass
+
+
+  class AAA(AA):
+      pass
+
+
+  class B(metaclass=M):
+      pass
+
+
+  class C(AAA, B, metaclass=M):
+      pass
+
+
+  C().f()
+  print(C.__mro__)
+#+END_SRC
+
+#+RESULTS:
+: - B C
+: - A C
+: - AA C
+: - AAA C
+: - C C
+: - (<class '__main__.C'>, <class '__main__.AAA'>, <class '__main__.AA'>, <class '__main__.A'>, <class '__main__.B'>, <class 'object'>)
+
+* yield的理解
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer output list :exports both :session yield_test
+  def test():
+      i = 0
+      a = 4
+      while i < a:
+          x = yield i
+          i += 1
+
+
+  for i in test():
+      print(i)
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+- 0
+- 1
+- 2
+- 3
+:END:
+
+#+BEGIN_SRC python 
+  t = test()
+  print(t)
+  print(t.next())
+  print(t.next())
+  print(t.next())
+  print(t.next())
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+- <generator object test at 0x103667640>
+- 0
+- 1
+- 2
+- 3
+- StopIterationTraceback (most recent call last)
+<ipython-input-2-a8e2c17b3394> in <module>()
+      5 print(t.next())
+      6 print(t.next())
+----> 7 print(t.next())
+
+StopIteration: 
+:END:
+
+#+BEGIN_SRC python
+  def test():
+      x = yield "第一次yield的值"
+      print(x)
+      x = yield "第二次yield的值"
+      print(x)
+      x = yield
+
+
+  gen = test()
+  print(gen.send("第一次send的值"))
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+TypeErrorTraceback (most recent call last)
+<ipython-input-3-a13210904ae1> in <module>()
+      8 
+      9 gen = test()
+---> 10 print(gen.send("第一次send的值"))
+
+TypeError: can't send non-None value to a just-started generator
+:END:
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer output list :exports both :session yield_send
+  def test():
+      x = yield "第一次yield的值"
+      print(x)
+      x = yield "第二次yield的值"
+      print(x)
+      x = yield
+
+
+  gen = test()
+  print(gen.next())
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+- 第一次yield的值
+:END:
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer output list :exports both :session yield_send
+  print(gen.send("第一次send的值"))
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+- 第一次send的值
+- 第二次yield的值
+:END:
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer output list :exports both :session yield_send
+  print(gen.send("第二次send的值"))
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+- 第二次send的值
+- None
+:END:
