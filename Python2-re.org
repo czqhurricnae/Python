@@ -14,14 +14,18 @@
 
   print "Found '%s'\nin '%s'\nfrom %d to %d ('%s')" % \
         (match.re.pattern, match.string, s, e, text[s: e])
+  print match.group()
+  print match.groups()
 #+END_SRC
 
 #+RESULTS:
 :RESULTS:
-<_sre.SRE_Match object at 0x10f92db28>
+<_sre.SRE_Match object at 0x103a1cb28>
 Found 'this'
 in 'Does this text match the pattern?'
 from 5 to 9 ('this')
+this
+()
 :END:
 
 ** 编译表达式
@@ -1387,7 +1391,6 @@ UnicodeDecodeError: 'ascii' codec can't decode byte 0xe5 in position 0: ordinal 
   print a
   print str(a)
   print unicode(a)
-
 #+END_SRC
 
 #+RESULTS:
