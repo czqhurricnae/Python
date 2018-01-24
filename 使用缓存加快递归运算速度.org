@@ -1,0 +1,51 @@
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer output list :exports both :session
+  def climb(n, steps, cache=None):
+      if cache is None:
+          cache = {}
+
+      count = 0
+
+      if n == 0:
+          count = 1
+          return count
+
+      if n in cache:
+          return sum(cache[n].values())
+      else:
+          cache[n] = {}
+          for step in steps:
+              if n - step < 0:
+                  break
+              cache[n][step] = climb(n - step, steps, cache)
+          return sum(cache[n].values())
+
+
+  print climb(10, [1, 2, 3])
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+- 274
+:END:
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer output list :exports both :session
+  def fibonacci(n, cache=None):
+      if cache is None:
+          cache = {}
+      if n in cache:
+          return cache[n]
+      if n <= 1:
+              cache[n] = 1
+      else:
+          cache[n] = fibonacci(n - 1, cache) + fibonacci(n - 2, cache)
+      return cache[n]
+
+  print fibonacci(30)
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+- 1346269
+:END:
+[TODO: 使用装饰器将缓存实现]
