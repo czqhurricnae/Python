@@ -147,7 +147,7 @@ order (MRO) for bases B, A
 所以Python为了让开发者写出有意义的类也是尽了很大的努力.
 
 * C3算法的改进
-增加抛出异常功能, 防止进入无线循环.
+增加抛出异常功能, 防止进入无限循环.
 
 #+BEGIN_SRC python 
   import itertools
@@ -509,10 +509,20 @@ AssertionErrorTraceback (most recent call last)
 AssertionError: 
 :END:
 
+原本期望的结果是:
+
+#+RESULTS:
+:RESULTS:
+- ('Drawing.  Setting color to:', 'blue')
+- ('Drawing.  Setting shape to:', 'square')
+- ("OtherShape drawing.")
+:END:
+
+但是却出现了断言异常, 这是为什么?
 在类`Root`中有一句断言`assert not hasattr(super, draw)`, 它的作用是防止类`ColorShape`从其他不是继承自类`Root`的
 类继承来`draw`方法.
 那么它是如何在判断到这种情况来抛出断言异常呢?
-原因在于`__mro__`类`OtherShape`是排在类`Root`后面的, 那么`super(Root, self)`指向类`OtherShape`, 通过
+原因在于`__mro__`中类`OtherShape`是排在类`Root`后面的, 那么`super(Root, self)`指向类`OtherShape`, 通过
 断言`Root`的后续类没有`draw`方法来及时抛出异常, 从而保证了`ColorShape`的`draw`不能从非继承类`Root`的其他类来继承.
 
 If subclasses want to inject other classes into the MRO, 
@@ -546,9 +556,10 @@ TypeErrorTraceback (most recent call last)
 TypeError: must be type, not classobj
 
 ```
-2. `super()`方法必须显示写明参数,即`super(type[,obj-or-type])`.
-3. 在Python3没有上述注意点.
-*** Every occurrence of the method needs to user SUPER()
+1. `super()`方法必须显示写明参数,即`super(type[,obj-or-type])`.
+2. 在Python3没有上述注意点.
+ 
+** Every occurrence of the method needs to user SUPER()
 这是因为混用`super`和传统调用可能导致异常发生.
 
 #+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer output list :exports both :session
@@ -632,4 +643,117 @@ random.Random是存在于_random模块中的另一个类的封装,
 #+RESULTS:
 :RESULTS:
 : (random.Random, _random.Random, object)
+:END:
+* 如何解决第三方类不兼容问题
+有时会遇到需要使用第三方类来继承, 但是第三方类方法或者不支持`super()`或者
+没有继承自类`Roo`(就像前面的例子).
+这时的解决方法是使用适配器类.
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer output list :exports both :session adapter
+  class Root(object):
+      def draw(self):
+          # the delegation chain stops here
+          assert not hasattr(super(Root, self), 'draw')
+
+
+  class Shape(Root):
+      def __init__(self, shapename, **kwds):
+          self.shapename = shapename
+          super(Shape, self).__init__(**kwds)
+
+      def draw(self):
+          print('Drawing.  Setting shape to:', self.shapename)
+          super(Shape, self).draw()
+
+
+  class ColoredShape(Shape):
+        def __init__(self, color, **kwds):
+            self.color = color
+            super(ColoredShape, self).__init__(**kwds)
+
+        def draw(self):
+            print('Drawing.  Setting color to:', self.color)
+            super(ColoredShape, self).draw()
+
+
+  class Moveable(object):
+      def __init__(self, x, y):
+          self.x = x
+          self.y = y
+      
+      def draw(self):
+          print("Drawing at position: ", self.x, self.y)
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+
+:END:
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer output list :exports both :session adapter
+  class MoveableAdapter(Root):
+      def __init__(self, x, y, **kwds):
+          self.movable = Moveable(x, y)
+          super(MoveableAdapter, self).__init__(**kwds)
+      
+      def draw(self):
+          self.movable.draw()
+          super(MoveableAdapter, self).draw()
+  
+
+  class MovableColoredShape(ColoredShape, MoveableAdapter):
+      pass
+  mcs = MovableColoredShape(color="red", shapename="circle",
+                          x=10, y=20)
+  mcs.draw() 
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+- ('Drawing.  Setting color to:', 'red')
+- ('Drawing.  Setting shape to:', 'circle')
+- ('Drawing at position: ', 10, 20)
+:END:
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer values list :exports both :session adapter
+[_.__name__ for _ in MovableColoredShape.__mro__]
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+- #+BEGIN_EXAMPLE
+- ['MovableColoredShape',
+- 'ColoredShape',
+- 'Shape',
+- 'MoveableAdapter',
+- 'Root',
+- 'object']
+- #+END_EXAMPLE
+:END:
+
+* Just for fun
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer output list :exports both :session
+  from collections import Counter, OrderedDict
+
+
+  class OrderedCounter(Counter, OrderedDict):
+      "Counter that remembers the order elements are first see"
+      def __repr__(self):
+        return "%s(%r)" % (self.__class__.__name__,
+                          OrderedDict(self))
+                          
+      def __reduce__(self):
+          return self.__class__, (OrderedDict(self),)
+                      
+
+  oc = OrderedCounter("abracadabra")
+  print(repr(oc))
+  print oc.__class__
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+- OrderedCounter(OrderedDict([('a', 5), ('b', 2), ('r', 2), ('c', 1), ('d', 1)]))
+- <class '__main__.OrderedCounter'>
 :END:
