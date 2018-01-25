@@ -1,0 +1,317 @@
+`pickle`模块有个备选是叫`cPickle`, 用C实现, 速度比Python版快, 但是
+`cPickle`的`Pickler()`和`Unpickler()`不支持子类化, 因为它们在`cPickle`中是函数.
+
+* 哪些是pickled的哪些是unpickled
+** pickled
+- None, True, False
+- integers, long integers, floating point numbers, complex numbers
+- normal and Unicode strings
+- tuples, lists, sets, and dictionaries containing only picklable objects
+- functions defined at the top level of a module
+- built-in functions defined at the top level of a module
+- classes that are defined at the top level of a module
+- instances of such classes whose __dict__ or the result of calling __getstate__() is picklable
+
+** unpickled
+套接字, 文件句柄, 数据库连接
+运行时状态依赖于操作系统或其他进程的对象
+如果对象包含unpickled的属性, 可以定义`__getstate__()`和`__setstate__()`来
+返回可pickle实例状态的一个子集.
+新式类还可以定义`__getnewargs__()`, 这会返回要传至类内存分配器(C.__new__())的参数.
+
+** PicklingError
+Attempts to pickle unpicklable objects will raise the `PicklingError` exception; 
+when this happens, an unspecified number of bytes may have already been written to the underlying file. 
+
+** 循环引用对象可能导致递归深度超出
+Trying to pickle a highly recursive data structure may exceed the maximum recursion depth, 
+a `RuntimeError` will be raised in this case. 
+You can carefully raise this limit with `sys.setrecursionlimit()`.
+
+** 函数和类pickle时只是pickle名字, 而非数值, 属性, 或者代码等等
+Note that functions (built-in and user-defined) are pickled by “fully qualified” name reference, not by value. 
+This means that only the function name is pickled, along with the name of the module the function is defined in. 
+Neither the function’s code, nor any of its function attributes are pickled. 
+Thus the defining module must be importable in the unpickling environment, 
+and the module must contain the named object, otherwise an exception will be raised.
+Similarly, classes are pickled by named reference, 
+so the same restrictions in the unpickling environment apply. 
+Note that none of the class’s code or data is pickled, 
+so in the following example the class attribute attr is not restored in the unpickling environment:
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer output list :exports both :session
+  import pickle
+
+
+  class Foo(object):
+      att = "a class attr"
+
+
+  pickle_string = pickle.dumps(Foo)
+  print(pickle_string)
+#+END_SRC
+
+* 编码和解码字符串数据
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer output list :exports both :session example1
+  try:
+      import cPickle as pickle
+  except:
+      import pickle
+  import pprint
+
+  data = [{"a": "A", "b": 2, "c": "汉字"}]
+  print("DATA: ")
+  pprint.pprint(data)
+  data_string = pickle.dumps(data)
+  print("PICKLE: %r" % data_string)
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+- DATA: 
+- [{'a': 'A', 'b': 2, 'c': '\xe6\xb1\x89\xe5\xad\x97'}]
+- PICKLE: "(lp1\n(dp2\nS'a'\nS'A'\nsS'c'\nS'\\xe6\\xb1\\x89\\xe5\\xad\\x97'\np3\nsS'b'\nI2\nsa."
+:END:
+
+数据串行化后, 可以写到文件, 套接字或者管道.
+也可以读取dumps后的文件, 将数据解除pickle, 用同样的值构造一个新的对象.
+
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer output list :exports both :session example1
+  print("BEFORE: ")
+  pprint.pprint(data)
+
+  data_ = pickle.loads(data_string)
+  print("AFTER: ")
+  pprint.pprint(data_)
+
+  print("SAME?: ", (data is data_))
+  print("EQUAL?: ", (data == data_))
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+- BEFORE: 
+- [{'a': 'A', 'b': 2, 'c': '\xe6\xb1\x89\xe5\xad\x97'}]
+- AFTER: 
+- [{'a': 'A', 'b': 2, 'c': '\xe6\xb1\x89\xe5\xad\x97'}]
+- ('SAME?: ', False)
+- ('EQUAL?: ', True)
+:END:
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer output list :exports both :session example1
+  print(pickle.HIGHEST_PROTOCOL)
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+- 2
+:END:
+
+* 处理流
+** 使用文件描述符
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer output list :exports both :session example2
+  try:
+      import cPickle as pickle
+  except:
+      import pickle
+
+
+  class SimpleObject(object):
+      def __init__(self, name):
+          self.name = name
+          self.name_backwards = name[::-1]
+          return
+
+
+  data = []
+  data.append(SimpleObject("pickle"))
+  data.append(SimpleObject("cPickle"))
+  data.append(SimpleObject("last"))
+
+  with open("/Users/c/Python/data/data.pkl", "w+") as fp:
+      for o in data:
+          print("WRITING: %s (%s)" % (o.name, o.name_backwards))
+          pickle.dump(o, fp)
+
+  with open("/Users/c/Python/data/data.pkl", "rb") as fp:
+      while True:
+          try:
+                  o = pickle.load(fp)
+          except EOFError:
+              break
+          else:
+              print("READ: %s (%s)") % (o.name, o.name_backwards)
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+- WRITING: pickle (elkcip)
+- WRITING: cPickle (elkciPc)
+- WRITING: last (tsal)
+- READ: pickle (elkcip)
+- READ: cPickle (elkciPc)
+- READ: last (tsal)
+:END:
+** 使用两个StringIO缓冲区来模拟流
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer output list :exports both :session
+  try:
+      import cPickle as pickle
+  except:
+      import pickle
+  import pprint
+  from StringIO import StringIO
+
+  class SimpleObject(object):
+
+      def __init__(self, name):
+          self.name = name
+          self.name_backwards = name[::-1]
+          return
+
+  data = []
+  data.append(SimpleObject('pickle'))
+  data.append(SimpleObject('cPickle'))
+  data.append(SimpleObject('last'))
+
+  # Simulate a file with StringIO
+  out_s = StringIO()
+
+  # Write to the stream
+  for o in data:
+      print 'WRITING : %s (%s)' % (o.name, o.name_backwards)
+      pickle.dump(o, out_s)
+      out_s.flush()
+
+  # Set up a read-able stream
+  in_s = StringIO(out_s.getvalue())
+
+  # 查看in_s的内容和数据类型
+  print("CONTENT OF StringIO.getvalue(): %s" % out_s.getvalue())
+  print("TYPE OF StringIO.getvalue(): %s" % type(out_s.getvalue()))
+
+  # Read the data
+  while True:
+      try:
+          o = pickle.load(in_s)
+      except EOFError:
+          break
+      else:
+          print 'READ    : %s (%s)' % (o.name, o.name_backwards)
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+- WRITING : pickle (elkcip)
+- WRITING : cPickle (elkciPc)
+- WRITING : last (tsal)
+- CONTENT OF StringIO.getvalue(): ccopy_reg
+- _reconstructor
+- p1
+- (c__main__
+- SimpleObject
+- p2
+- c__builtin__
+- object
+- p3
+- NtRp4
+- (dp5
+- S'name_backwards'
+- p6
+- S'elkcip'
+- p7
+- sS'name'
+- p8
+- S'pickle'
+- p9
+- sb.ccopy_reg
+- _reconstructor
+- p1
+- (c__main__
+- SimpleObject
+- p2
+- c__builtin__
+- object
+- p3
+- NtRp4
+- (dp5
+- S'name_backwards'
+- p6
+- S'elkciPc'
+- p7
+- sS'name'
+- p8
+- S'cPickle'
+- p9
+- sb.ccopy_reg
+- _reconstructor
+- p1
+- (c__main__
+- SimpleObject
+- p2
+- c__builtin__
+- object
+- p3
+- NtRp4
+- (dp5
+- S'name_backwards'
+- p6
+- S'tsal'
+- p7
+- sS'name'
+- p8
+- S'last'
+- p9
+- sb.
+- TYPE OF StringIO.getvalue(): <type 'str'>
+- READ    : pickle (elkcip)
+- READ    : cPickle (elkciPc)
+- READ    : last (tsal)
+:END:
+除了存储数据, pickle对于进程间通信也很方便.
+os.fork()和os.pipe()可以用来创建工作进程, 从一个管道读取作业指令, 把结果
+写至另一个管道. 
+管理工作线程池以及发送作业和接受响应的核心代码可以重用, 因为作业和响应对象
+不必基于一个特定的类.
+使用管道或套接字是, 在转储各个对象后不要忘记刷新输出, 将数据通过连接推至
+另一端.
+
+* 重构对象问题
+marshal cannot be used to serialize user-defined classes and their instances. 
+pickle can save and restore class instances transparently, 
+however the class definition must be importable 
+and live in the same module as when the object was stored.
+
+处理定制类时, pickle类必须出现在读取pickle的进程所在的命名空间.
+只会pickle这个实例的数据, 不包括类定义.
+类名用于查找构造函数, 以便在解除pickle时创建新对象.
+
+#+BEGIN_SRC python
+  try:
+      import cPickle as pickle
+  except:
+      import pickle
+
+
+  with open("/Users/c/Python/data/data.pkl", "rb") as in_s:
+      while True:
+          try:
+              o = pickle.load(in_s)
+          except EOFError:
+              break
+          else:
+              print("READ: %s (%s)" % (o.name, o.name_backwards))
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+ Traceback (most recent call last):
+  File "test.py", line 10, in <module>
+    o = pickle.load(in_s)
+AttributeError: 'module' object has no attribute 'SimpleObject'
+:END:
+
+如果导入`SimpleObject`类, 则不会出现异常, 程序会查找类并构造对象.
