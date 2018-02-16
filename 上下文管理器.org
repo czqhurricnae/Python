@@ -1,0 +1,90 @@
+* with语句
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer output list :exports both :session with
+  with open("test.txt", "w") as f:
+      f.write("Hello World")
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+
+:END:
+
+with语句的代码块的执行过程如下:
+1. 计算表达式的值, 返回一个上下文管理器对象
+2. 加载上下文管理器对象的__exit__()方法以备后用
+3. 调用上下文管理器对象的__enter__()方法
+4. 如果with语句中设置了目标对象, 将__enter__()方法的返回值赋值给目标对象
+5. 执行with中的代码块
+6. 如果步骤5中代码正常结束, 调用上下文管理器对象的__exit__()方法, 其返回值直接忽略
+7. 如果步骤5中代码执行过程中发生异常, 调用上下文管理器对象的__exit__()方法,
+将异常类型, 异常值, traceback信息作为参数传递给__exit__()方法, 如果__exit__方法的返回值赋值给目标对象
+返回值为false, 则异常重新抛出, 如果返回值为true, 则异常被挂起, 程序继续执行.
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer output list :exports both :session with
+  print f.__enter__
+  print f.__exit__
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+- <built-in method __enter__ of file object at 0x10e6bec90>
+- <built-in method __exit__ of file object at 0x10e6bec90>
+:END:
+
+* 自定义上下文管理器
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer output list :exports both :session MyContextManager
+
+class MyContextManager(object):
+      def __enter__(self):
+          print "entering..."
+
+      def __exit__(self, exception_type, exception_value, traceback):
+          print "leaving..."
+          if exception_type is None:
+              print "no exceptions!"
+              return False
+          elif exception_type is ValueError:
+              print "value error!!!"
+              return True
+          else:
+              print "other error!!!"
+              return True
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+
+:END:
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer output list :exports both :session MyContextManager
+  with MyContextManager():
+      print "testing..."
+      raise ValueError
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+- entering...
+- testing...
+- leaving...
+- value error!!!
+:END:
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer output list :exports both :session MyContextManager
+  with MyContextManager():
+      print "testing..."
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+- entering...
+- testing...
+- leaving...
+- no exceptions!
+:END:
+
+* contextmanager装饰器
+Python提供了contextlib模块, 该模块是通过Generator实现的, 其中
+的contextmanager装饰器提供一种针对函数级别的上下文管理机制.
