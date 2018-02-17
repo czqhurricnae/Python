@@ -1,0 +1,198 @@
+* 检查是否为整数
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer output list :exports both :session
+"""Example for descriptor that checks conditions on attributes.
+"""
+from __future__ import print_function
+
+from weakref import WeakKeyDictionary
+
+
+class Checked(object):
+    """Descriptor that checks with a user-supplied check function
+    if an attribute is valid.
+    """
+
+    _hidden = WeakKeyDictionary()
+
+    def __init__(self, checker=None, default=None):
+        if checker:
+            # checker must be a callable
+            checker(default)
+        self.checker = checker
+        self.default = default
+
+    def __get__(self, instance, owner):
+        return Checked._hidden.get(instance, self.default)
+
+    def __set__(self, instance, value):
+        if self.checker:
+            self.checker(value)
+        Checked._hidden[instance] = value
+
+
+if __name__ == '__main__':
+
+    def is_int(value):
+        """Check if value is an integer.
+        """
+        if not isinstance(value, int):
+            raise ValueError('Int required {} found'.format(type(value)))
+
+    class Restricted(object):
+        """Use checked attributes.
+        """
+        attr1 = Checked(checker=is_int, default=10)
+        attr2 = Checked(default=12.5)
+        # Setting the default to float, `is_int` raises a `ValueError`.
+        try:
+            attr3 = Checked(checker=is_int, default=12.5)
+        except ValueError:
+            print('Cannot set default to float, must be int.')
+            attr3 = Checked(checker=is_int, default=12)
+
+    restricted = Restricted()
+    print('attr1', restricted.attr1)
+    restricted.attr1 = 100
+    print('attr1', restricted.attr1)
+    try:
+        restricted.attr1 = 200.12
+    except ValueError:
+        print('Cannot set attr1 to float, must be int.')
+        restricted.attr1 = 200
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+- Cannot set default to float, must be int.
+- attr1 10
+- attr1 100
+- Cannot set attr1 to float, must be int.
+:END:
+
+* 检查是否为正数
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer output list :exports both :session
+  """A descriptor that allows only positive values.
+  """
+
+  from __future__ import print_function
+
+  class PositiveOnly(object):
+      """Allow only positive values.
+      """
+
+      def __init__(self):
+          self.value = 0
+
+      def __get__(self, instance, owner):
+          return self.value
+
+      def __set__(self, instance, value):
+          # Use abs here because this requires a number.value.
+          # In Python2, 'a' < 0 would return False,
+          # in Python3, it would raise TypeError.
+          # Numbers only please.
+          if value != abs(value):
+              raise ValueError("Only positive values are allows, given %s."
+                               % value)
+          self.value = value
+
+
+  class Number(object):
+      value = PositiveOnly()
+
+
+  if __name__ == "__main__":
+          number = Number()
+          print(number.value)
+          number.value = 100
+          print(Number.value)
+          try:
+              number.value = -1
+          except (ValueError, TypeError) as e:
+              print(e)
+          try:
+              number.value = "x"
+          except (ValueError, TypeError) as e:
+              print(e) 
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+- 0
+- 100
+- Only positive values are allows, given -1.
+- bad operand type for abs(): 'str'
+:END:
+注意:在Python2中是可以对字符和数字进行比较的, 但是在Python3中不行.
+
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer values list :exports both :session
+  "a" > 0
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+- # Out[17]:
+- : True
+:END:
+
+* 增值税
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer output list :exports both :session
+  """A price with VAT.
+  """
+  from __future__ import print_function
+
+
+  class Total(object):
+
+      def __init__(self, rate=1.19):
+          self.rate = rate
+
+      def __get__(self, instance, owner):
+          return round(instance.net * self.rate, 2)
+
+      def __set__(self, instance, value):
+          raise NotImplementedError("cannot change value.")
+
+
+  class PriceGermany(object):
+      total = Total(1.19)
+
+      def __init__(self, net):
+          self.net = net
+
+
+  class PriceDenmark(object):
+      total = Total(1.25)
+
+      def __init__(self, net):
+          self.net = net
+
+
+  class PriceLuxebourg(object):
+      total = Total(1.17)
+
+      def __init__(self, net):
+          self.net = net
+
+
+  if __name__ == "__main__":
+      price_germany = PriceGermany(110)
+      print("Germany", price_germany.total)
+
+      price_denmark= PriceDenmark(110)
+      print("Denmark", price_denmark.total)
+
+      price_luxembourg = PriceLuxebourg(110)
+      print("Luxembourg", price_luxembourg.total)
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+- Germany 130.9
+- Denmark 137.5
+- Luxembourg 128.7
+:END:
