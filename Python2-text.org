@@ -1,0 +1,365 @@
+* string模块
+** capwords函数
+结果等同于先调用split(),然后调用join()
+
+#+BEGIN_SRC python :results output :exports both
+  import string
+
+  s = "The quick brown fox jumped over the lazy dog."
+
+  print s
+  print string.capwords(s)
+#+END_SRC
+
+#+RESULTS:
+: The quick brown fox jumped over the lazy dog.
+: The Quick Brown Fox Jumped Over The Lazy Dog.
+
+** maketrans函数
+maketrans()函数创建转换表, 可以结合translate()方法将一组字符修改为另一组字符, 这种做法比反复调用repalce()更为高效. 在Python2中, maketrans函数必须有两个参数 在Python3中, maketrans如果只有一个参数, 那么必须是一个字典, 字典键的长度只能为1.
+
+#+BEGIN_SRC python :results output :exports both
+  import string
+
+  leet = string.maketrans({"e": "1"})
+  s = "The quick brown fox jumped over the lazy dog."
+  print s
+  print s.translate(leet)
+#+END_SRC
+
+#+RESULTS:
+---------------------------------------------------------------------------
+TypeError                                 Traceback (most recent call last)
+<ipython-input-21-cc932a8190dc> in <module>()
+      1 import string
+      2 
+----> 3 leet = string.maketrans({"e": "1"})
+      4 s = "The quick brown fox jumped over the lazy dog."
+      5 print s
+
+TypeError: maketrans() takes exactly 2 arguments (1 given)
+
+
+#+BEGIN_SRC python :results output :exports both
+  s = "read this short txt"
+  print s.translate(None, "aeiou")
+#+END_SRC
+
+#+RESULTS:
+: rd ths shrt txt
+: read this short txt
+
+#+BEGIN_SRC python :results output :exports both
+  import string
+
+  leet = string.maketrans("abegiloprstz", "463611092572")
+  s = "The quick brown fox jumped over the lazy dog."
+  print s
+  print s.translate(leet)
+#+END_SRC
+
+#+RESULTS:
+: The quick brown fox jumped over the lazy dog.
+: Th3 qu1ck 620wn f0x jum93d 0v32 7h3 142y d06.
+
+** Template类
+如果需要与两侧的文本区分, 使用大括号将变量扩起来${var}.
+
+#+BEGIN_SRC python :results output :exports both
+  import string
+
+  values = { "var": "foo" }
+
+  t = string.Template("""
+  Variable        : $var
+  Escape          : $$
+  Variable in text: ${var}iable
+  """)
+
+  print "TEMPLATE: ", t.substitute(values)
+
+  s = """
+  Variable        : %(var)s
+  Escape          : %%
+  Variable in text: %(var)siable
+  """
+
+  print "INTERPOLATION: ", s % values
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+TEMPLATE:  
+Variable        : foo
+Escape          : $
+Variable in text: fooiable
+
+INTERPOLATION:  
+Variable        : foo
+Escape          : %
+Variable in text: fooiable
+
+#+end_example
+
+使用safe_substitue方法, 避免未能提供模板所需全部参数时可能产生的异常.
+#+BEGIN_SRC python :results output :exports both
+  import string
+
+  values = { "var" : "foo" }
+
+  t = string.Template("$var is here but $missing is not provided")
+
+  try:
+      print "substitue: ", t.substitute(values)
+  except KeyError, error:
+      print "ERROR: ", error
+
+  print "safe_substitute: ", t.safe_substitute(values)
+#+END_SRC
+
+#+RESULTS:
+: substitue:  ERROR:  'missing'
+: safe_substitute:  foo is here but $missing is not provided
+
+修改Template类的属性delimiter和idpattern来调整在模板中查找变量名所使用的正则表达式.
+
+#+BEGIN_SRC python :results output :exports both
+  import string
+
+  template_txt = """
+  Delimiter : %%
+  Replaced  : %with_underscore
+  Ignored   : %notunderscore
+  """
+
+  d = {
+  "with_underscore" : "replaced",
+  "notunderscore" : "not replaced"
+  }
+
+  class MyTemplate(string.Template):
+      delimiter = "%"
+      idpattern = "[a-z]+_[a-z]+"
+
+  t = MyTemplate(template_txt)
+  print "Modified ID pattern: "
+  print t.safe_substitute(d)
+#+END_SRC
+
+#+RESULTS:
+: Modified ID pattern: 
+: 
+: Delimiter : %
+: Replaced  : replaced
+: Ignored   : %notunderscore
+: 
+
+进行更复杂的修改, 自定义全新的正则表达式, 所提供的模式必须包含4个命名组: 转义定界符, 命名变量, 用大括号括住的变量名, 不合法的定界符.
+
+#+BEGIN_SRC python :results output :exports both
+  import string
+  import re
+
+  t = string.Template("$var")
+  print t.pattern.pattern
+  s = """
+  Variable        : $var
+  Escape          : $$
+  Variable in text: ${var}iable
+  """
+  print t.pattern.findall(s)
+
+#+END_SRC
+
+#+RESULTS:
+: 
+:     \$(?:
+:       (?P<escaped>\$) |   # Escape sequence of two delimiters
+:       (?P<named>[_a-z][_a-z0-9]*)      |   # delimiter and a Python identifier
+:       {(?P<braced>[_a-z][_a-z0-9]*)}   |   # delimiter and a braced identifier
+:       (?P<invalid>)              # Other ill-formed delimiter exprs
+:     )
+:     
+: [('', 'var', '', ''), ('$', '', '', ''), ('', '', 'var', '')]
+这个例子中使用{{作为转义符通过(?P<escaped>\{\{)来实现, 而使用%%来作为与其他字符隔离的符号通过\%\%(?P<braced>[_a-z][_a-z-0-9]*)\%\%来实现.
+
+#+BEGIN_SRC python :results output :exports both
+  import re
+  import string
+
+  class MyTemplate(string.Template):
+      delimiter = "{{"
+      pattern = r"""
+      \{\{(?:
+      (?P<escaped>\{\{) |
+      (?P<named>[_a-z][_a-z-0-9]*)\}\} |
+      \%\%(?P<braced>[_a-z][_a-z-0-9]*)\%\% |
+      (?P<invalid>)
+      )
+      """
+
+  t = MyTemplate("""
+  {{{{
+  {{%%var%%iable
+  """)
+
+  print t.template
+  print "MATCHES: ", t.pattern.findall(t.template)
+  print "SUBSTITUTED: ", t.safe_substitute(var="replacement")
+#+END_SRC
+
+#+RESULTS:
+: 
+: {{{{
+: {{%%var%%iable
+: 
+: MATCHES:  [('{{', '', '', ''), ('', '', 'var', '')]
+: SUBSTITUTED:  
+: {{
+: replacementiable
+: 
+
+** textwrap-格式化文本段落
+*** fill()函数
+fill()函数效果, 左对齐, 第一行保留了缩进,其余各行前面的空格嵌入到段落中, 在situation前就继续留有多余的缩进.
+
+#+BEGIN_SRC python :results output :exports both
+  import textwrap
+
+  sample_txt = """
+      The testwrap module can be used to format text for output in
+      situations where pretty-printing is desired. It offers
+      programmatic functionality similar to the paragraph wrapping
+      or filling features found in many text editors.
+  """
+
+  print "no dedent: \n"
+  print textwrap.fill(sample_txt, width = 50)
+#+END_SRC
+
+#+RESULTS:
+: no dedent: 
+: 
+:      The testwrap module can be used to format
+: text for output in     situations where pretty-
+: printing is desired. It offers     programmatic
+: functionality similar to the paragraph wrapping
+: or filling features found in many text editors.
+
+*** dedent()函数
+dedent()方法能够删除各行最前面都有的空白符.
+
+#+BEGIN_SRC python :results output :exports both
+  import textwrap
+
+  sample_txt = """
+      The testwrap module can be used to format text for output in
+      situations where pretty-printing is desired. It offers
+      programmatic functionality similar to the paragraph wrapping
+      or filling features found in many text editors.
+  """
+
+  dedent_text = textwrap.dedent(sample_txt)
+  print "dedent: \n"
+  print dedent_text
+#+END_SRC
+
+#+RESULTS:
+: dedent: 
+: 
+: 
+: The testwrap module can be used to format text for output in
+: situations where pretty-printing is desired. It offers
+: programmatic functionality similar to the paragraph wrapping
+: or filling features found in many text editors.
+: 
+但是如果有某一行比其他行缩进多, 则会有一些空白符无法删除.
+
+#+BEGIN_SRC python :results output :exports both
+  import textwrap
+
+  sample_txt = """
+   Line one.
+
+     Line two.
+   Line three.
+  """
+
+  dedent_text = textwrap.dedent(sample_txt)
+  print "dedent: \n"
+  print dedent_text
+#+END_SRC
+
+#+RESULTS:
+: dedent: 
+: 
+: 
+: Line one.
+: 
+:   Line two.
+: Line three.
+: 
+
+*** 结合fill和dedent
+
+    #+BEGIN_SRC python :results output :exports both
+      import textwrap
+
+      sample_txt = """
+          The testwrap module can be used to format text for output in
+          situations where pretty-printing is desired. It offers
+          programmatic functionality similar to the paragraph wrapping
+          or filling features found in many text editors.
+      """
+      dedent_text = textwrap.dedent(sample_txt).strip()
+      for width in [45, 60]:
+          print "%d columns: \n" % width
+          print textwrap.fill(dedent_text, width = width)
+          print 
+    #+END_SRC
+
+    #+RESULTS:
+    #+begin_example
+    45 columns: 
+
+    The testwrap module can be used to format
+    text for output in situations where pretty-
+    printing is desired. It offers programmatic
+    functionality similar to the paragraph
+    wrapping or filling features found in many
+    text editors.
+
+    60 columns: 
+
+    The testwrap module can be used to format text for output in
+    situations where pretty-printing is desired. It offers
+    programmatic functionality similar to the paragraph wrapping
+    or filling features found in many text editors.
+
+    #+end_example
+
+*** 悬挂缩进, 单独控制第一行的缩进
+
+    #+BEGIN_SRC python :results output :exports both
+      import textwrap
+
+      sample_txt = """
+          The testwrap module can be used to format text for output in
+          situations where pretty-printing is desired. It offers
+          programmatic functionality similar to the paragraph wrapping
+          or filling features found in many text editors.
+      """
+      dedent_text = textwrap.dedent(sample_txt).strip()
+      print textwrap.fill(dedent_text,
+                          initial_indent = "",
+                          subsequent_indent = " " * 4,
+                          width = 50
+                          )
+    #+END_SRC
+
+    #+RESULTS:
+    : The testwrap module can be used to format text for
+    :     output in situations where pretty-printing is
+    :     desired. It offers programmatic functionality
+    :     similar to the paragraph wrapping or filling
+    :     features found in many text editors.
