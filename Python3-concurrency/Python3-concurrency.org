@@ -1,0 +1,594 @@
+* 最简单的一个服务器
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer output list :exports both :session
+from socket import socket, AF_INET, SOCK_STREAM, SOL_SOCKET, SO_REUSEADDR
+def fib(n):
+    if n <= 2:
+        return 1
+    else:
+        return fib(n - 1) + fib(n - 2)
+
+def fib_server(address):
+    sock = socket(AF_INET, SOCK_STREAM)
+    sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+    sock.bind(address)
+    sock.listen(5)
+    while True:
+        client, addr = sock.accept()
+        print("Connection", addr)
+        handle_client(client)
+
+def handle_client(client):
+    while True:
+        recv = client.recv(100)
+        if not recv:
+            break
+        result = fib(int(recv))
+        response = str(result).encode("ascii") + b"\n"
+        client.send(response)
+    print("Closed")
+
+
+fib_server(("", 2500))
+#+END_SRC
+[[file:screenshotImg/fib_server.png]]
+当一个 client hogging 一个连接时, 会导致其他的连接阻塞.
+[[file:screenshotImg/client_hogging.png]]
+在上图中的连接还未等到服务端的响应,导致下图中的连接阻塞.
+[[file:screenshotImg/client_blocked.png]]
+
+* 多线程
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer output list :exports both :session
+from socket import socket, AF_INET, SOCK_STREAM, SOL_SOCKET, SO_REUSEADDR
+from threading import Thread
+def fib(n):
+    if n <= 2:
+        return 1
+    else:
+        return fib(n - 1) + fib(n - 2)
+
+def fib_server(address):
+    sock = socket(AF_INET, SOCK_STREAM)
+    sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+    sock.bind(address)
+    sock.listen(5)
+    while True:
+        client, addr = sock.accept()
+        print("Connection", addr)
+        Thread(target=handle_client, args=(client,)).start()
+
+def handle_client(client):
+    while True:
+        recv = client.recv(100)
+        if not recv:
+            break
+        result = fib(int(recv))
+        response = str(result).encode("ascii") + b"\n"
+        client.send(response)
+    print("Closed")
+
+
+fib_server(("", 2500))
+#+END_SRC
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer output list :exports both :session
+from socket import *
+import time
+
+sock = socket(AF_INET, SOCK_STREAM)
+sock.connect(("localhost", 2500))
+
+while True:
+    start = time.time()
+    sock.send(b"10")
+    response = sock.recv(100)
+    end = time.time()
+    print(end - start)
+#+END_SRC
+
+由于 GIL 的限制,Python 无法使用多核心的优势.所以当多运行一个 performance.py 程序时时间多了一倍.
+[[file:screenshotImg/GIL的限制.png]]
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer output list :exports both :session
+# requests/second of fast requests.
+from socket import *
+from threading import Thread
+import time
+
+sock = socket(AF_INET, SOCK_STREAM)
+sock.connect(("localhost", 2500))
+n = 0
+
+def monitor():
+    global n
+    while True:
+        time.sleep(1)
+        print(n, "reqs/sec")
+        n = 0
+
+Thread(target=monitor).start()
+
+while True:
+    sock.send(b"1")
+    response = sock.recv(100)
+    n += 1
+#+END_SRC
+[[file:screenshotImg/GIL的限制1.png]]
+
+* 对 fib_server.py 使用 ProcessPoolExecutor 进行改进.
+[[file:screenshotImg/使用ProcessPoolExecutor.png]]
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer output list :exports both :session
+from collections import deque
+
+
+tasks = deque()
+
+def countdown(n):
+    while n>0:
+        yield n
+        n -= 1
+
+tasks.extend([countdown(10), countdown(5), countdown(20)])
+
+def run():
+    while tasks:
+        try:
+            task = tasks.popleft()
+            result = next(task)
+            print(result)
+            tasks.append(task)
+        except StopIteration:
+            print("Tasks done!")
+
+run()
+#+END_SRC
+
+#+RESULTS:
+:results:
+- 10
+- 5
+- 20
+- 9
+- 4
+- 19
+- 8
+- 3
+- 18
+- 7
+- 2
+- 17
+- 6
+- 1
+- 16
+- 5
+- Tasks done!
+- 15
+- 4
+- 14
+- 3
+- 13
+- 2
+- 12
+- 1
+- 11
+- Tasks done!
+- 10
+- 9
+- 8
+- 7
+- 6
+- 5
+- 4
+- 3
+- 2
+- 1
+- Tasks done!
+:end:
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer output list :exports both :session
+from socket import socket, AF_INET, SOCK_STREAM, SOL_SOCKET, SO_REUSEADDR
+from collections import deque
+from select import select
+
+
+tasks = deque()
+recv_wait = {}
+send_wait = {}
+
+def fib(n):
+    if n <= 2:
+        return 1
+    else:
+        return fib(n - 1) + fib(n - 2)
+
+def fib_server(address):
+    sock = socket(AF_INET, SOCK_STREAM)
+    sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+    sock.bind(address)
+    sock.listen(5)
+    while True:
+        yield "Recv", sock
+        client, addr = sock.accept()
+        print("Connection", addr)
+        tasks.append(handle_client(client))
+
+def handle_client(client):
+    while True:
+        yield "Recv", client
+        recv = client.recv(100)
+        if not recv:
+            break
+        result = fib(int(recv))
+        response = str(result).encode("ascii") + b"\n"
+        yield "Send", client
+        client.send(response)
+        # print("Closed")
+
+
+def run():
+    while any([tasks, recv_wait, send_wait]):
+        while not tasks:
+            # Not active tasks to run.
+            # Wait of I/O.
+            can_recv, can_send, _ = select(recv_wait, send_wait)
+            for s in can_recv:
+                tasks.append(recv_wait.pop(s))
+            for s in can_send:
+                tasks.append(send_wait.pop(s))
+        try:
+            task = tasks.popleft()
+            why, what = next(task)
+            if why == "Recv":
+                recv_wait[what] = task
+            elif why == "Send":
+                send_wait[what] = task
+            else:
+                return RuntimeError
+        except StopIteration:
+            print("Task Done!")
+
+tasks.append(fib_server(("", 2500)))
+#+END_SRC
+
+[[file:screenshotImg/yield无法解决GIL的限制.png]]
+[[file:screenshotImg/yield无法解决GIL的限制1.png]]
+
+* 同时使用 yield 和 ThreadPoolExcutor
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer output list :exports both :session
+from socket import socket, AF_INET, SOCK_STREAM, SOL_SOCKET, SO_REUSEADDR
+from collections import deque
+from select import select
+from concurrent.futures import ThreadPoolExecutor as Pool
+
+pool = Pool(4)
+
+tasks = deque()
+recv_wait = {}
+send_wait = {}
+
+def fib(n):
+    if n <= 2:
+        return 1
+    else:
+        return fib(n - 1) + fib(n - 2)
+
+def fib_server(address):
+    sock = socket(AF_INET, SOCK_STREAM)
+    sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+    sock.bind(address)
+    sock.listen(5)
+    while True:
+        yield "Recv", sock
+        client, addr = sock.accept()
+        print("Connection", addr)
+        handle_client(client)
+
+def handle_client(client):
+    while True:
+        yield "Recv", client
+        recv = client.recv(100)
+        if not recv:
+            break
+        future = pool.submit(fib, int(recv))
+        result = future.result()
+        response = str(result).encode("ascii") + b"\n"
+        yield "Send", client
+        client.send(response)
+        # print("Closed")
+
+
+def run():
+    while any([tasks, recv_wait, send_wait]):
+        while not tasks:
+            # Not active tasks to run.
+            # Wait of I/O.
+            can_recv, can_send, _ = select(recv_wait, send_wait, [])
+            for s in can_recv:
+                tasks.append(recv_wait.pop(s))
+            for s in can_send:
+                tasks.append(send_wait.pop(s))
+        try:
+            task = tasks.popleft()
+            why, what = next(task)
+            if why == "Recv":
+                recv_wait[what] = task
+            elif why == "Send":
+                send_wait[what] = task
+            else:
+                return RuntimeError
+        except StopIteration:
+            print("Task Done!")
+
+tasks.append(fib_server(("", 2500)))
+run()
+#+END_SRC
+
+[[file:screenshotImg/yield和threadPool形成竞争.png]]
+
+** 防止在使用协程时阻塞它
+** 错误的示范
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer output list :exports both :session
+from socket import socket, AF_INET, SOCK_STREAM, SOL_SOCKET, SO_REUSEADDR
+from collections import deque
+from select import select
+from concurrent.futures import ThreadPoolExecutor as Pool
+
+
+pool = Pool(4)
+
+tasks = deque()
+recv_wait = {}
+send_wait = {}
+future_wait = {}
+
+def future_done(future):
+    tasks.append(future_wait.pop(future))
+
+def fib(n):
+    if n <= 2:
+        return 1
+    else:
+        return fib(n - 1) + fib(n - 2)
+
+def fib_server(address):
+    sock = socket(AF_INET, SOCK_STREAM)
+    sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+    sock.bind(address)
+    sock.listen(5)
+    while True:
+        yield "Recv", sock
+        client, addr = sock.accept()
+        print("Connection", addr)
+        tasks.append(handle_client(client))
+
+def handle_client(client):
+    while True:
+        yield "Recv", client
+        recv = client.recv(100)
+        if not recv:
+            break
+        future = pool.submit(fib, int(recv))
+        yield "Future", future
+        result = future.result()    # Block
+        response = str(result).encode("ascii") + b"\n"
+        yield "Send", client
+        client.send(response)
+        # print("Closed")
+
+
+def run():
+    while any([tasks, recv_wait, send_wait]):
+        while not tasks:
+            # Not active tasks to run.
+            # Wait of I/O.
+            can_recv, can_send, _ = select(recv_wait, send_wait, [])
+            for s in can_recv:
+                tasks.append(recv_wait.pop(s))
+            for s in can_send:
+                tasks.append(send_wait.pop(s))
+        try:
+            task = tasks.popleft()
+            why, what = next(task)
+            if why == "Recv":
+                recv_wait[what] = task
+            elif why == "Send":
+                send_wait[what] = task
+            elif why == "Future":
+                future_wait[what] = task
+                what.add_done_callback(future_done)
+            else:
+                return RuntimeError
+        except StopIteration:
+            print("Task Done!")
+
+tasks.append(fib_server(("", 2500)))
+run()
+#+END_SRC
+
+[[file:screenshotImg/ThreadPoolExcutor阻塞在select.png]]
+[[file:screenshotImg/ThreadPoolExcutor阻塞在select1.png]]
+
+** 正确
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer output list :exports both :session
+from socket import socket, AF_INET, SOCK_STREAM, SOL_SOCKET, SO_REUSEADDR, socketpair
+from collections import deque
+from select import select
+from concurrent.futures import ThreadPoolExecutor as Pool
+
+
+pool = Pool(4)
+
+tasks = deque()
+recv_wait = {}
+send_wait = {}
+future_wait = {}
+
+future_notify, future_event = socketpair()
+
+def future_done(future):
+    tasks.append(future_wait.pop(future))
+    future_notify.send(b"x")
+
+def future_monitor():
+    while True:
+        yield "Recv", future_event
+        future_event.recv(100)
+
+tasks.append(future_monitor())
+
+def fib(n):
+    if n <= 2:
+        return 1
+    else:
+        return fib(n - 1) + fib(n - 2)
+
+def fib_server(address):
+    sock = socket(AF_INET, SOCK_STREAM)
+    sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+    sock.bind(address)
+    sock.listen(5)
+    while True:
+        yield "Recv", sock
+        client, addr = sock.accept()
+        print("Connection", addr)
+        tasks.append(handle_client(client))
+
+def handle_client(client):
+    while True:
+        yield "Recv", client
+        recv = client.recv(100)
+        if not recv:
+            break
+        future = pool.submit(fib, int(recv))
+        yield "Future", future
+        result = future.result()    # Block
+        response = str(result).encode("ascii") + b"\n"
+        yield "Send", client
+        client.send(response)
+        # print("Closed")
+
+
+def run():
+    while any([tasks, recv_wait, send_wait]):
+        while not tasks:
+            # Not active tasks to run.
+            # Wait of I/O.
+            can_recv, can_send, _ = select(recv_wait, send_wait, [])
+            for s in can_recv:
+                tasks.append(recv_wait.pop(s))
+            for s in can_send:
+                tasks.append(send_wait.pop(s))
+        try:
+            task = tasks.popleft()
+            why, what = next(task)
+            if why == "Recv":
+                recv_wait[what] = task
+            elif why == "Send":
+                send_wait[what] = task
+            elif why == "Future":
+                future_wait[what] = task
+                what.add_done_callback(future_done)
+            else:
+                return RuntimeError
+        except StopIteration:
+            print("Task Done!")
+
+tasks.append(fib_server(("", 2500)))
+run()
+#+END_SRC
+
+[[file:screenshotImg/ThreadPoolExcutor不再阻塞在select.png]]
+
+* 使用 yield 和 ProcessPoolExcutor
+
+#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer output list :exports both :session
+from socket import socket, AF_INET, SOCK_STREAM, SOL_SOCKET, SO_REUSEADDR, socketpair
+from collections import deque
+from select import select
+from concurrent.futures import ProcessPoolExecutor as Pool
+
+
+pool = Pool(4)
+
+tasks = deque()
+recv_wait = {}
+send_wait = {}
+future_wait = {}
+
+future_notify, future_event = socketpair()
+
+def future_done(future):
+    tasks.append(future_wait.pop(future))
+    future_notify.send(b"x")
+
+def future_monitor():
+    while True:
+        yield "Recv", future_event
+        future_event.recv(100)
+
+tasks.append(future_monitor())
+
+def fib(n):
+    if n <= 2:
+        return 1
+    else:
+        return fib(n - 1) + fib(n - 2)
+
+def fib_server(address):
+    sock = socket(AF_INET, SOCK_STREAM)
+    sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+    sock.bind(address)
+    sock.listen(5)
+    while True:
+        yield "Recv", sock
+        client, addr = sock.accept()
+        print("Connection", addr)
+        tasks.append(handle_client(client))
+
+def handle_client(client):
+    while True:
+        yield "Recv", client
+        recv = client.recv(100)
+        if not recv:
+            break
+        future = pool.submit(fib, int(recv))
+        yield "Future", future
+        result = future.result()    # Block
+        response = str(result).encode("ascii") + b"\n"
+        yield "Send", client
+        client.send(response)
+        # print("Closed")
+
+
+def run():
+    while any([tasks, recv_wait, send_wait]):
+        while not tasks:
+            # Not active tasks to run.
+            # Wait of I/O.
+            can_recv, can_send, _ = select(recv_wait, send_wait, [])
+            for s in can_recv:
+                tasks.append(recv_wait.pop(s))
+            for s in can_send:
+                tasks.append(send_wait.pop(s))
+        try:
+            task = tasks.popleft()
+            why, what = next(task)
+            if why == "Recv":
+                recv_wait[what] = task
+            elif why == "Send":
+                send_wait[what] = task
+            elif why == "Future":
+                future_wait[what] = task
+                what.add_done_callback(future_done)
+            else:
+                return RuntimeError
+        except StopIteration:
+            print("Task Done!")
+
+tasks.append(fib_server(("", 2500)))
+run()
+#+END_SRC
+
+[[file:screenshotImg/yield和processPool.png]]
