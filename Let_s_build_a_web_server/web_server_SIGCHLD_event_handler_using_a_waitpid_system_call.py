@@ -11,8 +11,8 @@ def grim_reaper(signum, frame):
     while True:
         try:
             pid, status = os.waitpid(
-                -1,          # Wait for any child process
-                 os.WNOHANG  # Do not block and return EWOULDBLOCK error
+                -1,  # Wait for any child process
+                os.WNOHANG  # Do not block and return EWOULDBLOCK error
             )
         except OSError:
             return

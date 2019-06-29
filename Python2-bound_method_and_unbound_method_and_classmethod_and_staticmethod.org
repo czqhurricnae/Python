@@ -1,5 +1,5 @@
 * 函数是非数据描述符
-在Python2中执行:
+在 Python2 中执行:
 
 #+BEGIN_SRC python
   def func():
@@ -22,7 +22,7 @@
 - <unbound method ?.func>
 :END:
 
-#+BEGIN_SRC python 
+#+BEGIN_SRC python
   func.__get__(1, 1)
 #+END_SRC
 
@@ -31,7 +31,7 @@
 - <bound method ?.func of 1>
 :END:
 
-在Python3中执行:
+在 Python3 中执行:
 
 #+BEGIN_SRC python
   def func():
@@ -63,11 +63,11 @@
 - <bound method func of 1>
 :END:
 
-可以看出在Python3中没有了unbound method这个概念.而是将其看成普通的function.
+可以看出在 Python3 中没有了 unbound method 这个概念.而是将其看成普通的 function.
 
-** 类的方法通过描述符机制在运行时返回boud method对象和unboud method对象的机制
+** 类的方法通过描述符机制在运行时返回 boud method 对象和 unboud method 对象的机制
 
-#+BEGIN_SRC ipython :session A
+#+BEGIN_SRC python
   class A(object):
 
       a = 1
@@ -80,43 +80,37 @@
           return self.b
 #+END_SRC
 
-#+RESULTS:
-: # Out[17]:
-
-#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer values list :exports both :session A
+#+BEGIN_SRC python
   A.func
 #+END_SRC
 
 #+RESULTS:
 :RESULTS:
-- # Out[7]:
-- : <unbound method A.func>
+<unbound method A.func>
 :END:
 
-#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer values list :exports both :session A
+#+BEGIN_SRC python
   A.__dict__["func"].__get__(None, A)
 #+END_SRC
 
 #+RESULTS:
 :RESULTS:
-- # Out[8]:
-- : <unbound method A.func>
+<unbound method A.func>
 :END:
 
-为什么A.func等价于A.__dict__["func"].__get__(None, A)?
-首先明确一个概念, 不管是function还是在class内定义的method, Python都一视同仁, 将它们视为function.
+为什么 A.func 等价于 A.__dict__["func"].__get__(None, A)?
+首先明确一个概念, 不管是 function 还是在 class 内定义的 method, Python 都一视同仁, 将它们视为 function.
 
-#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer values list :exports both :session A
+#+BEGIN_SRC python
   type(A.__dict__["func"])
 #+END_SRC
 
 #+RESULTS:
 :RESULTS:
-- # Out[12]:
-- : function
+function
 :END:
 
-#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer values list :exports both :session A
+#+BEGIN_SRC python
   def func():
       pass
 
@@ -125,37 +119,34 @@
 
 #+RESULTS:
 :RESULTS:
-- # Out[13]:
-- : function
+function
 :END:
 
 而从前面一节可知, 函数是非数据描述符, 所以它有__get__(self, instance, owner)方法.
-所以当调用__get__方法时, instance参数为None, owner参数为该非数据描述符的拥有者即类A.
+所以当调用__get__方法时, instance 参数为 None, owner 参数为该非数据描述符的拥有者即类 A.
 
-#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer values list :exports both :session A
+#+BEGIN_SRC python
   A().func
 #+END_SRC
 
 #+RESULTS:
 :RESULTS:
-- # Out[14]:
-- : <bound method A.func of <__main__.A object at 0x1047b8b90>>
+<bound method A.func of <__main__.A object at 0x1047b8b90>>
 :END:
 
-#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer values list :exports both :session A
+#+BEGIN_SRC python
   A.__dict__["func"].__get__(A(), A)
 #+END_SRC
 
 #+RESULTS:
 :RESULTS:
-- # Out[16]:
-- : <bound method A.func of <__main__.A object at 0x10484b490>>
+<bound method A.func of <__main__.A object at 0x10484b490>>
 :END:
 
-* classmethod, staticmethod的运行机制
-同样classmethod,staticmethod是非数据描述符.
+* classmethod, staticmethod 的运行机制
+同样 classmethod,staticmethod 是非数据描述符.
 
-#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :session cs
+#+BEGIN_SRC python
   class classmethod(object):
       """reconstruct __builtins__.classmethod
       """
@@ -205,80 +196,75 @@
 #+END_SRC
 
 #+RESULTS:
-: # Out[2]:
 
-#+BEGIN_SRC ipython
+#+BEGIN_SRC python
   A.cfunc
 #+END_SRC
 
 #+RESULTS:
 :RESULTS:
-- # Out[3]:
-- : classmethod __get__ called
-- : ('instance: ', None)
-- : ('owner: ', <class '__main__.A'>)
-- : <bound method type.cfunc of <class '__main__.A'>>
+classmethod __get__ called
+('instance: ', None)
+('owner: ', <class '__main__.A'>)
+<bound method type.cfunc of <class '__main__.A'>>
 :END:
 
-#+BEGIN_SRC ipython
+#+BEGIN_SRC python
   A.__dict__["cfunc"].__get__(None, A)
 #+END_SRC
 
 #+RESULTS:
 :RESULTS:
-- # Out[4]:
-- : classmethod __get__ called
-- : ('instance: ', None)
-- : ('owner: ', <class '__main__.A'>)
-- : <bound method type.cfunc of <class '__main__.A'>>
+classmethod __get__ called
+('instance: ', None)
+('owner: ', <class '__main__.A'>)
+<bound method type.cfunc of <class '__main__.A'>>
 :END:
 
-为什么经过classmethod装饰器装饰过的方法就能够不传入类实例而就能变成bound method, 而非前面的例子中的unbound method呢?
-其实从classmethod中不难看出, 是classmethod类中的__get__拦截了A类中的方法cfunc的__get__方法的参数传递过程, 将原来传入的参数instance = None舍弃,
-而将owner = <class '__main__.A'>参数传入给cfunc.__get__方法的instance作为参数.
+为什么经过 classmethod 装饰器装饰过的方法就能够不传入类实例而就能变成 bound method, 而非前面的例子中的 unbound method 呢?
+其实从 classmethod 中不难看出, 是 classmethod 类中的__get__拦截了 A 类中的方法 cfunc 的__get__方法的参数传递过程,
+将原来传入的参数 instance = None 舍弃,
+而将 owner = <class '__main__.A'> 参数传入给 cfunc.__get__方法的 instance 作为参数.
 
-#+BEGIN_SRC ipython :preamble # -*- coding: utf-8 -*- :results raw drawer values list :exports both :session cs 
+#+BEGIN_SRC python
   A.sfunc
 #+END_SRC
 
 #+RESULTS:
 :RESULTS:
-- # Out[5]:
-- : staticmethod __get__ called
-- : <function __main__.sfunc>
+staticmethod __get__ called
+<function __main__.sfunc>
 :END:
 
-#+BEGIN_SRC ipython
+#+BEGIN_SRC python
   A.__dict__["sfunc"].__get__(None, A)
 #+END_SRC
 
 #+RESULTS:
 :RESULTS:
-- # Out[6]:
-- : staticmethod __get__ called
-- : <function __main__.sfunc>
+staticmethod __get__ called
+<function __main__.sfunc>
 :END:
 
-#+BEGIN_SRC ipython
+#+BEGIN_SRC python
   A().sfunc
 #+END_SRC
 
 #+RESULTS:
 :RESULTS:
-- # Out[7]:
-- : staticmethod __get__ called
-- : <function __main__.sfunc>
+staticmethod __get__ called
+<function __main__.sfunc>
 :END:
 
-#+BEGIN_SRC ipython
+#+BEGIN_SRC python
   A.__dict__["sfunc"].__get__(A(), A)
 #+END_SRC
 
 #+RESULTS:
 :RESULTS:
-- # Out[8]:
-- : staticmethod __get__ called
-- : <function __main__.sfunc>
+staticmethod __get__ called
+<function __main__.sfunc>
 :END:
-为什么经过staticmethod装饰器装饰过的方法既可以用类调用, 也可以用实例调用, 是因为staticmethod这个非数据描述符拦截了对A类中sfunc的访问,
+
+为什么经过 staticmethod 装饰器装饰过的方法既可以用类调用, 也可以用实例调用, 是因为 staticmethod 这个非数据描述符拦截了对 A 类中 sfunc 的访问,
 并只是简单地将其原样调用.

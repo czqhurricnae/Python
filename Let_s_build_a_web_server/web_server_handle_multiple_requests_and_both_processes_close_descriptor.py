@@ -8,8 +8,8 @@ REQUEST_QUEUE_SIZE = 5
 
 def handle_request(client_connection):
     request = client_connection.recv(1024)
-    print("Child PID: {pid}. Paren PID: {ppid}".format(
-        pid=os.getpid(), ppid=os.getppid()))
+    print("Child PID: {pid}. Paren PID: {ppid}".format(pid=os.getpid(),
+                                                       ppid=os.getppid()))
     print(request.decode())
     http_response = b"""
 HTTP/1.1 200 OK

@@ -22,7 +22,7 @@ def main(max_clients, max_conns):
                 sock.sendall(REQUEST)
                 socks.append(sock)
                 print(connection_num)
-                os._exit(0) 
+                os._exit(0)
 
 
 if __name__ == "__main__":
@@ -30,17 +30,13 @@ if __name__ == "__main__":
         description="Test client for LSBAWS.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument(
-        "--max-conns",
-        type=int,
-        default=1024,
-        help="Maximum number of connections per client."
-    )
-    parser.add_argument(
-        "--max-clients",
-        type=int,
-        default=1,
-        help="Maximum number of clients."
-    )
+    parser.add_argument("--max-conns",
+                        type=int,
+                        default=1024,
+                        help="Maximum number of connections per client.")
+    parser.add_argument("--max-clients",
+                        type=int,
+                        default=1,
+                        help="Maximum number of clients.")
     args = parser.parse_args()
     main(args.max_clients, args.max_conns)
